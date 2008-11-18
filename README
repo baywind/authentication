@@ -1,0 +1,5 @@
+Authentication framework of classes used for user authentication and authorisation
+for use with RUJEL and maybe some other WebObjects projects
+
+A project folder to be imported into Eclipse + WOLips IDE
+depends on Reusables.framework
