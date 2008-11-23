@@ -87,8 +87,8 @@ public class PrefsAccessHandler implements AccessHandler {
 			String key = (String)enu.nextElement();
 		//for (int i = 0; i < found.length; i++) {
 			curr = node.getInt(key,0);
-			if(curr > result && user.isInGroup(key))
-				result = curr;
+			if(user.isInGroup(key))
+				result = result | curr;
 		}
 		return result;
 	}
