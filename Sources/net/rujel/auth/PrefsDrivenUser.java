@@ -125,4 +125,11 @@ public class PrefsDrivenUser extends UserPresentation.DefaultImplementation impl
 	public Object[] listGroups() {
 		return allGroups.split(";");
 	}
+	
+	public String present() {
+		String name = prefs.get("fullName", null);
+		if(name == null)
+			name = prefs.get("sn", uname);
+		return name;
+	}
 }
