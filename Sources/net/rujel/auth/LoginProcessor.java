@@ -74,7 +74,7 @@ public class LoginProcessor {
 	}
 	
 	public static WOComponent enterLogin(WOContext ctx, String message) {
-		prefs.refresh();
+		//prefs.refresh();
 		if(prefs.getBoolean("useHTTPS",true) && !WORequestAdditions.isSecure(ctx.request()))
 			return secureRedirect(null,ctx,true);
 		
@@ -140,12 +140,15 @@ ipSelection:
 		
 		NSMutableDictionary formValues = req.formValues().mutableClone();
 		formValues.removeObjectsForKeys(new NSArray(loginHandler.args()));
+		formValues.removeObjectForKey(WOContext.SessionIDBindingKey);
 		String uri;
 		if (action==null) {
 			uri = req.uri();
-			if(ctx.hasSession() && ctx.session().storesIDsInURLs() && !uri.contains("wosid=")) { //req.stringFormValueForKey("wosid") == null
+			if(ctx.hasSession() && !ctx.session().isTerminating() &&
+					ctx.session().storesIDsInURLs() && !uri.contains(WOContext.SessionIDBindingKey + '=')) {
+				//req.stringFormValueForKey(WOContext.SessionIDBindingKey) == null
 				char amp = (uri.indexOf('?') > 0)?'&':'?';
-				uri = uri + amp + "wosid=" + ctx.session().sessionID();
+				uri = uri + amp + WOContext.SessionIDBindingKey + '=' + ctx.session().sessionID();
 			}
 		} else {
 			uri = ctx.directActionURLForActionNamed(action,formValues);
@@ -311,7 +314,7 @@ ipSelection:
 	
 	public static WOComponent loginAction (WOContext ctx, String welcomeAction) {
 		//prefs.refresh();
-		loginHandler = LoginHandler.Generator.generate();
+		//loginHandler = LoginHandler.Generator.generate();
 		WORequest req = ctx.request();
 		/*if(req.method().equalsIgnoreCase("GET"))
 			return enterLogin(ctx);
@@ -328,6 +331,7 @@ ipSelection:
 		
 		NSMutableArray formValueKeys = req.formValueKeys().mutableClone();
 		formValueKeys.removeObjects(loginHandler.args());
+		formValueKeys.removeObject(WOContext.SessionIDBindingKey);
 		
 		if (formValueKeys.count() > 0) {
 			NSMutableDictionary queryDictionary = new NSMutableDictionary();
