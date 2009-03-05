@@ -17,7 +17,7 @@ public class WORequestAdditions
 {
     // Add more options here (e.g. for IIS, NSAPI, etc.), if neccessary...
     public static final NSArray HOST_NAME_KEYS = new NSArray(new Object[]
-        {"x-webobjects-server-name", "server_name", "Host", "http_host"});
+        {"host","x-webobjects-server-name", "server_name", "Host", "http_host"});
         
     // Add more options here (e.g. for IIS, NSAPI, etc.), if neccessary...
     public static final NSArray SERVER_PORT_KEYS = new NSArray(new Object[]
