@@ -71,7 +71,7 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 				NamedFlags result = new ImmutableNamedFlags(level,accessKeys);
 				return result;
 			} catch (AccessHandler.UnlistedModuleException e) {
-				Object [] args = new Object[] {ses,obj};
+				Object [] args = new Object[] {ses,obj,e};
 				Logger.getLogger("auth").log(Level.WARNING,"Undefined access to module : returning default access",args);
 				return defaultAccess;
 			}
