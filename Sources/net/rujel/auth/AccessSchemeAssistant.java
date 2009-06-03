@@ -35,6 +35,7 @@ import net.rujel.reusables.*;
 import com.webobjects.foundation.*;
 import com.webobjects.eocontrol.*;
 
+@ Deprecated
 public class AccessSchemeAssistant implements NSKeyValueCoding {
 	protected NSMutableSet _schemes = new NSMutableSet();
 	protected UserPresentation user;

@@ -26,7 +26,6 @@
  * CONTRACT, STRICT LIABILITY, OR TORT (INCLUDING NEGLIGENCE OR OTHERWISE) ARISING IN ANY
  * WAY OUT OF THE USE OF THIS SOFTWARE, EVEN IF ADVISED OF THE POSSIBILITY OF SUCH DAMAGE.
  */
-
 package net.rujel.auth;
 
 import net.rujel.reusables.*;
@@ -35,6 +34,7 @@ import com.webobjects.eocontrol.*;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 
+@ Deprecated
 public interface UseAccess {
 	public static final NSArray accessKeys = new NSArray (new String[] {"read","create","edit","delete"});
 	

@@ -32,6 +32,7 @@ package net.rujel.auth;
 import net.rujel.reusables.*;
 import com.webobjects.foundation.NSArray;
 
+@ Deprecated
 public interface UseAccessScheme extends UseAccess {
 
 	public AccessSchemeAssistant assistantForAttribute(String attribute, NSArray keys);

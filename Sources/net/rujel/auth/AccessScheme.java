@@ -29,11 +29,11 @@
 
 package net.rujel.auth;
 
-
 import com.webobjects.foundation.*;
 import com.webobjects.eocontrol.*;
 import com.webobjects.eoaccess.EOUtilities;
 
+@Deprecated
 public class AccessScheme extends EOCustomObject
 {
 	private String _schemeName = null;

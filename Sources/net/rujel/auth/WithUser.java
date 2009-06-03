@@ -29,6 +29,7 @@
 
 package net.rujel.auth;
 
+@Deprecated
 public interface WithUser {
 	
 	public void setUser(UserPresentation aUser);
