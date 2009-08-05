@@ -60,33 +60,22 @@ public class PrefsAccessHandler implements AccessHandler {
 		if(obj == null || obj.toString().length() == 0)
 			throw new IllegalArgumentException ("Non empty String required"); 
 		if(user == null) {
-		//	if(!prefs.getBoolean("allowNone",false))
 				return 0;
 			
 		}
-		//Object[] found = null;
-		//Preferences node = null;
 		SettingsReader node = SettingsReader.settingsForPath("auth.access." + obj,false);
-		
-		//try {
-		if(node == null) //(!prefs.nodeExists(obj.toString()))
+		if(node == null)
 			throw new AccessHandler.UnlistedModuleException("Access to this module is not described");
-		/*	node = prefs.node(obj.toString());
-		String[] grps = node.keys();
-		//			int len = grps.length;
-		found = user.filterMyGroups(grps);
-		} catch (java.util.prefs.BackingStoreException bex) {
-			throw new IllegalStateException("Could not read preferences",bex);
-		}
-		if(found.length == 0)
-			return 0;*/
+		SettingsReader mapping = SettingsReader.settingsForPath("auth.groupMapping",false);
 		java.util.Enumeration enu = node.keyEnumerator();
 		int result = 0;
 		int curr = 0;
 		while (enu.hasMoreElements()) {
 			String key = (String)enu.nextElement();
-		//for (int i = 0; i < found.length; i++) {
 			curr = node.getInt(key,0);
+			if(mapping != null) {
+				key = mapping.get(key, key);
+			}
 			if(user.isInGroup(key))
 				result = result | curr;
 		}
