@@ -34,11 +34,11 @@ import javax.naming.*;
 import javax.naming.directory.*;
 import javax.naming.ldap.LdapName;
 import java.util.Vector;
+import java.util.logging.Level;
 import java.util.logging.Logger;
 
 public class LdapUser extends UserPresentation.DefaultImplementation {
 	protected static Logger logger = Logger.getLogger("auth");
-	public static final String ATTR = "securityEquals";
 	protected Name[] myGroups;
 	
 	protected DirContext dirContext;
@@ -48,39 +48,57 @@ public class LdapUser extends UserPresentation.DefaultImplementation {
 		myGroups = groups;
 	}
 	
-	public LdapUser (DirContext context, String dn, String groupAttibute) {
+	public LdapUser (DirContext context, String dn) {
 		dirContext = context;
 		//userDn = dn;
-		if(groupAttibute == null) groupAttibute = ATTR;
-		Attribute grps = null;
-		try {
-			grps = context.getAttributes(dn,new String[] {groupAttibute}).get(groupAttibute);
-		} catch (javax.naming.NamingException ex) {
-			logger.throwing("LdapUser","<init>",ex);
-		} finally {
-			myGroups = getGroups(dn,grps);
-		}
-		/*} catch (Exception ex) {//(javax.naming.NamingException ex) {
-			myGroups = new Name[] { new LdapName (dn) };
-		}*/
+		myGroups = getGroups(dn);
 	}
 	
-	public static Name[] getGroups(String fullDn,Attribute grps) {//throws NamingException{
-		Name[] result = null;
+	protected Name[] getGroups(String fullDn) {//throws NamingException{
+		Vector<Name> collect = new Vector(2,3);
 		try {
 			Name dn = new LdapName (fullDn);
-			result = new Name[] { dn };
-			if(grps != null && grps.size() > 0) {
-				Vector<Name> collect = new Vector(2,3);
-				collect.add(dn);
-				javax.naming.NamingEnumeration groupNames = grps.getAll();
-				while(groupNames.hasMore()) {
-					collect.add(new LdapName ((String)groupNames.next()));
-				}
-				result = collect.toArray(new Name[0]);
+			Name baseDN = LdapAuthentication.baseDN();
+			if(dn.startsWith(baseDN)) {
+				dn = dn.getSuffix(baseDN.size());
 			}
+			String shortName = dn.get(dn.size() -1).split("=")[1];
+			collect.add(dn);
+			String groupAttibute = LdapAuthentication.prefs.get("groupAttribute", null);
+			if (groupAttibute != null) {
+				Attribute grps = dirContext.getAttributes(dn,
+						new String[] {groupAttibute}).get(groupAttibute);
+				if(grps != null && grps.size() > 0) {
+					NamingEnumeration groupNames = grps.getAll();
+					while(groupNames.hasMore()) {
+						Name name = new LdapName ((String)groupNames.next());
+						if(name.startsWith(baseDN)) {
+							name = name.getSuffix(baseDN.size());
+						}
+						collect.add(name);
+					}
+					groupNames.close();
+				}
+			}
+			groupAttibute = LdapAuthentication.prefs.get("memberAttribute", null);
+			if (groupAttibute != null) {
+				SearchControls ctrls = new SearchControls(
+						SearchControls.SUBTREE_SCOPE,0,1000,new String[] {},false,false);
+				NamingEnumeration grps = dirContext.search("",
+						groupAttibute + '=' + shortName, ctrls);
+				if(grps != null) {
+					while(grps.hasMore()) {
+						SearchResult res = (SearchResult)grps.next();
+						LdapName name = new LdapName(res.getName());
+						collect.add(name);
+					}
+					grps.close();
+				}
+			}
+		} catch (Exception ex) {
+			logger.log(Level.INFO,"Error getting groups for user",new Object[] {fullDn, ex});
 		} finally {
-			return result;
+			return collect.toArray(new Name[0]);
 		}
 	}
 	
@@ -133,6 +151,8 @@ public class LdapUser extends UserPresentation.DefaultImplementation {
 				//throw new IllegalArgumentException("Group argument could not be parced", ex);
 			}
 		}
+		if(check.startsWith(LdapAuthentication.baseDN()))
+			check = check.getSuffix(LdapAuthentication.baseDN().size());
 		for (int i = 0; i < myGroups.length; i++) {
 			if(myGroups[i].startsWith(check))
 				return true;

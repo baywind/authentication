@@ -13,6 +13,8 @@ import net.rujel.reusables.SettingsReader;
 import javax.naming.*;
 import javax.naming.directory.*;
 
+import com.sun.jndi.ldap.LdapName;
+
 import java.util.Hashtable;
 import java.util.logging.Logger;
 import java.util.logging.Level;
@@ -20,51 +22,12 @@ import java.util.logging.Level;
 
 public class LdapAuthentication implements LoginHandler {
 	protected static Logger logger = Logger.getLogger("auth");
-	protected static final SettingsReader prefs = SettingsReader.settingsForPath("auth.ldap",true);
-		/*public static void syncPrefs () {
-		try {
-			prefs.sync();
-		} catch (Exception e) {
-			
-		}
-	}
-	
-	protected AttributeReaderDelegate delegate = defaultDelegate;
-	public static final AttributeReaderDelegate defaultDelegate  = new AttributeReaderDelegate() {
-		public Integer getIntegerPresentation(DirContext context) {
-			int result = 0;
-			try {
-				Hashtable environment = context.getEnvironment();
-				String username = (String)environment.get(Context.SECURITY_PRINCIPAL);
-				result = (username == null || username.equals(prefs.get("proxyUserDn",null)))?0:1;
-			} catch (NamingException nex) {
-				result = 0;
-			}
-				return new Integer (result);
-		}
-	};
-	public static interface AttributeReaderDelegate {
-		public Integer getIntegerPresentation(DirContext context);
-	}
-	
-	
-	public void setAttributeReaderDelegate (AttributeReaderDelegate deleg) {
-		delegate = deleg;
-	} */
+	public static final SettingsReader prefs = SettingsReader.settingsForPath("auth.ldap",true);
+	protected static LdapName baseDN;
 	
 	public LdapAuthentication() {
 		super();
-		//prefs.refresh();
 	}
-
-	
-/*	public UserPresentation processLogin(WORequest req) throws AuthenticationFailedException {
-		//WORequest req = aContext.request();
-		String user = req.stringFormValueForKey("username");
-//		if (user==null) throw new IllegalArgumentException("No username provided.");
-		String pass = req.stringFormValueForKey("password");
-		return authenticate(user,pass);
-	} */
 	
 	public String[] args() {
 		return new String[] {"username", "password"};
@@ -113,7 +76,7 @@ public class LdapAuthentication implements LoginHandler {
 		// Set up environment for creating initial context
 		if (password == null)
 			password = "";
-		Hashtable env = initEnvironment(null);
+		Hashtable env = initEnvironment();
 		
 		env.put(Context.SECURITY_AUTHENTICATION, prefs.get("authentication","simple"));
 		
@@ -129,20 +92,18 @@ public class LdapAuthentication implements LoginHandler {
 			e.setUserId(userDn);
 			throw e;
 		}
-			String attr = prefs.get("groupAttribute","securityEquals");
-			return new LdapUser (ctx,userDn,attr);//(LdapUser.getGroups(userDn,grps));
-	//	return null;
+		return new LdapUser (ctx,userDn);
 	}
 	
-	public static Hashtable initEnvironment(String node) {
+	public static Hashtable initEnvironment() {
 		Hashtable env = new Hashtable();
 		env.put(Context.INITIAL_CONTEXT_FACTORY, prefs.get("contextFactory","com.sun.jndi.ldap.LdapCtxFactory"));
 		String url = prefs.get("providerUrl","ldap://localhost:389");
-		if (node != null)
-			url = url + "/" + node;
+		if (baseDN != null)
+			url = url + "/" + baseDN.toString();
 		env.put(Context.PROVIDER_URL,url);
-		String proto = prefs.get("securityProtocol",null);
 		if(prefs.getBoolean("useSSL", false)) {
+			String proto = prefs.get("securityProtocol",null);
 			if (proto != null)
 				env.put(Context.SECURITY_PROTOCOL,proto);
 			String factory = prefs.get("socketFactory", null);
@@ -152,12 +113,23 @@ public class LdapAuthentication implements LoginHandler {
 				env.put("java.naming.ldap.factory.socket", LdapSocketFactory.class.getName());
 			}
 		}
+//		For Active Directory:
+//		env.put(Context.REFERRAL, "follow");
 		return env;
 	}
 	
+	public static LdapName baseDN() {
+		return baseDN;
+	}
+	
 	public static String getUserDn (String cn) throws NamingException {
+		if(baseDN == null) {
+			String dn = prefs.get("baseDN",null);
+			if(dn != null)
+				baseDN = new LdapName(dn);
+		}
+		Hashtable env = initEnvironment();
 		String proxyDn = prefs.get("proxyUserDn",null);
-		Hashtable env = initEnvironment(null);
 		if (proxyDn != null) {
 			String proxyPasswd = prefs.get("proxyPassword",null);
 			env.put(Context.SECURITY_AUTHENTICATION, prefs.get("authentication","simple"));
@@ -171,19 +143,35 @@ public class LdapAuthentication implements LoginHandler {
 			DirContext ctx = null;
 //		try {
 			ctx = new InitialDirContext(env);
-/*		} catch (javax.naming.CommunicationException exc) {
-			if(!(exc.getCause() instanceof javax.net.ssl.SSLHandshakeException))
-				throw exc;
-		}*/
 			SearchControls ctrls = new SearchControls(SearchControls.SUBTREE_SCOPE,1,1000,new String[] {},false,false);
-			String usersNode = prefs.get("usersNode","");
-			NamingEnumeration results = ctx.search(usersNode,"cn=" + cn, ctrls);
-			if(usersNode != null && usersNode.length() > 1)
-				usersNode = ", " + usersNode;
+			String uid = prefs.get("uidAttribute","cn");
+			NamingEnumeration results = null;
+			if(baseDN == null) {
+				Attributes attrs = ctx.getAttributes("",
+						new String[] { "objectclass=*", "NamingContexts"});
+				Attribute attr = attrs.get("NamingContexts");
+				NamingEnumeration all = attr.getAll();
+				while (all.hasMore()) {
+					String node = all.nextElement().toString();
+					try {
+						results = ctx.search(node,uid + '=' + cn, ctrls);
+						if(results.hasMore()) {
+							baseDN = new LdapName(node);
+							logger.log(Level.CONFIG,"Found base DN: " + node);
+							break;
+						}
+					} catch (NamingException e) {
+						logger.log(Level.CONFIG,"Skipping base DN: " + node,e.toString());
+					}
+				}
+				all.close();
+			} else {
+				results = ctx.search("",uid + '=' + cn, ctrls);
+			}
 			if (results.hasMore()) {
 				SearchResult res = (SearchResult)results.next();
 				results.close();
-				return usersNode + res.getName();
+				return res.getName() + ',' + baseDN;
 			} else {
 				return null;
 			}

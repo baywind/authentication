@@ -76,7 +76,7 @@ public class PrefsAccessHandler implements AccessHandler {
 			if(mapping != null) {
 				key = mapping.get(key, key);
 			}
-			if(user.isInGroup(key))
+			if(key.equals("*") || user.isInGroup(key))
 				result = result | curr;
 		}
 		return result;
