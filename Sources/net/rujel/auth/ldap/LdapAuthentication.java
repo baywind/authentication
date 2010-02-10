@@ -99,7 +99,7 @@ public class LdapAuthentication implements LoginHandler {
 		Hashtable env = new Hashtable();
 		env.put(Context.INITIAL_CONTEXT_FACTORY, prefs.get("contextFactory","com.sun.jndi.ldap.LdapCtxFactory"));
 		String url = prefs.get("providerUrl","ldap://localhost:389");
-		if (baseDN != null)
+		if (baseDN != null && baseDN.size() > 0)
 			url = url + "/" + baseDN.toString();
 		env.put(Context.PROVIDER_URL,url);
 		if(prefs.getBoolean("useSSL", false)) {
@@ -144,7 +144,7 @@ public class LdapAuthentication implements LoginHandler {
 //		try {
 			ctx = new InitialDirContext(env);
 			SearchControls ctrls = new SearchControls(SearchControls.SUBTREE_SCOPE,1,1000,new String[] {},false,false);
-			String uid = prefs.get("uidAttribute","cn");
+			String uid = prefs.get("uidAttribute","uid");
 			NamingEnumeration results = null;
 			if(baseDN == null) {
 				Attributes attrs = ctx.getAttributes("",
@@ -168,10 +168,13 @@ public class LdapAuthentication implements LoginHandler {
 			} else {
 				results = ctx.search("",uid + '=' + cn, ctrls);
 			}
-			if (results.hasMore()) {
+			if (results != null && results.hasMore()) {
 				SearchResult res = (SearchResult)results.next();
 				results.close();
-				return res.getName() + ',' + baseDN;
+				if(baseDN.size() > 0)
+					return res.getName() + ',' + baseDN;
+				else
+					return res.getName();
 			} else {
 				return null;
 			}

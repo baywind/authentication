@@ -131,16 +131,25 @@ public class LdapUser extends UserPresentation.DefaultImplementation {
 	}
 	
 	public String present() {
-		Object result = propertyNamed("fullName");
-		if(result == null)
-			result = propertyNamed("sn");
+		String prop = LdapAuthentication.prefs.get("presentAttribute", "cn");
+		Object result = null;
+		if(prop.indexOf(' ') > 0) {
+			String[] props = prop.split(" ");
+			for (int i = 0; i < props.length; i++) {
+				result = propertyNamed(props[i]);
+				if(result != null)
+					break;
+			}
+		} else {
+			result = propertyNamed(prop);
+		}
 		if(result == null)
 			result = shortName();
 		return result.toString();
-	}	
+	}
 	
 	public boolean isInGroup (Object group) {
-		Name check;
+		Name check = null;
 		 if (group instanceof Name)
 			 check = (Name)group;
 		else {
