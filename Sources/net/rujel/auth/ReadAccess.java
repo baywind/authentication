@@ -35,6 +35,7 @@ import java.util.logging.Logger;
 import net.rujel.reusables.DegenerateFlags;
 import net.rujel.reusables.ImmutableNamedFlags;
 import net.rujel.reusables.NamedFlags;
+import net.rujel.reusables.PlistReader;
 
 import com.webobjects.appserver.*;
 import com.webobjects.eocontrol.EOEditingContext;
@@ -47,9 +48,17 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 	protected WOSession ses;
 	protected UserPresentation _user;
 	protected NamedFlags defaultAccess = DegenerateFlags.ALL_TRUE;
+	protected static PlistReader defaults;
 	
 	public ReadAccess(WOSession session) {
 		ses = session;
+	}
+	
+	public static void mergeDefaultAccess(NSDictionary toMerge) {
+		if(defaults == null)
+			defaults = new PlistReader(toMerge);
+		else
+			defaults.mergeValueToKeyPath(toMerge, null);
 	}
 	
 	protected UserPresentation user() {
@@ -66,17 +75,25 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 		if(user() == null) {
 			throw new IllegalStateException ("Can't get user to determine access");
 		} else {
+			int level = -1;
 			try {
-				int level = user().accessLevel(obj);
-				NamedFlags result = new ImmutableNamedFlags(level,accessKeys);
-				return result;
+				level = user().accessLevel(obj);
 			} catch (AccessHandler.UnlistedModuleException e) {
-				Object [] args = new Object[] {ses,obj,
-						ses.valueForKeyPath("context.component.name"),e};
-				Logger.getLogger("auth").log(Level.WARNING,
-						"Undefined access to module : returning default access",args);
-				return defaultAccess;
+				if(defaults != null && obj instanceof String) {
+					PlistReader acc = defaults.subreaderForPath((String)obj, false);
+					if(acc != null)
+						level = PrefsAccessHandler.accessLevel(acc, user());
+				}
+				if(level < 0) {
+					Object [] args = new Object[] {ses,obj,
+							ses.valueForKeyPath("context.component.name"),e};
+					Logger.getLogger("auth").log(Level.WARNING,
+							"Undefined access to module : returning default access",args);
+					return defaultAccess;
+				}
 			}
+			NamedFlags result = new ImmutableNamedFlags(level,accessKeys);
+			return result;
 		}
 	}
 	

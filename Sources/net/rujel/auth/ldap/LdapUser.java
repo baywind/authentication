@@ -62,7 +62,6 @@ public class LdapUser extends UserPresentation.DefaultImplementation {
 			if(dn.startsWith(baseDN)) {
 				dn = dn.getSuffix(baseDN.size());
 			}
-			String shortName = dn.get(dn.size() -1).split("=")[1];
 			collect.add(dn);
 			String groupAttibute = LdapAuthentication.prefs.get("groupAttribute", null);
 			if (groupAttibute != null) {
@@ -82,10 +81,15 @@ public class LdapUser extends UserPresentation.DefaultImplementation {
 			}
 			groupAttibute = LdapAuthentication.prefs.get("memberAttribute", null);
 			if (groupAttibute != null) {
+				String membName = null;
+				if(LdapAuthentication.prefs.getBoolean("fullMemberDN", false))
+					membName = fullDn;
+				else
+					membName = dn.get(dn.size() -1).split("=")[1];
 				SearchControls ctrls = new SearchControls(
 						SearchControls.SUBTREE_SCOPE,0,1000,new String[] {},false,false);
 				NamingEnumeration grps = dirContext.search("",
-						groupAttibute + '=' + shortName, ctrls);
+						groupAttibute + '=' + membName, ctrls);
 				if(grps != null) {
 					while(grps.hasMore()) {
 						SearchResult res = (SearchResult)grps.next();

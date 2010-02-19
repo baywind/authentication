@@ -48,7 +48,6 @@ public class PrefsAccessHandler implements AccessHandler {
 		return (aUser == user);//aUser.equals(user);
 	}
 
-	
 	public int accessLevel (Object obj) throws AccessHandler.UnlistedModuleException {
 		if(obj instanceof com.webobjects.eocontrol.EOEnterpriseObject) {
 			obj = ((com.webobjects.eocontrol.EOEnterpriseObject)obj).entityName();
@@ -61,11 +60,14 @@ public class PrefsAccessHandler implements AccessHandler {
 			throw new IllegalArgumentException ("Non empty String required"); 
 		if(user == null) {
 				return 0;
-			
 		}
 		SettingsReader node = SettingsReader.settingsForPath("auth.access." + obj,false);
 		if(node == null)
 			throw new AccessHandler.UnlistedModuleException("Access to this module is not described");
+		return accessLevel(node, user);
+	}
+	
+	public static int accessLevel (SettingsReader node, UserPresentation user) {
 		SettingsReader mapping = SettingsReader.settingsForPath("auth.groupMapping",false);
 		java.util.Enumeration enu = node.keyEnumerator();
 		int result = 0;
