@@ -32,12 +32,17 @@ package net.rujel.auth;
 import net.rujel.reusables.SettingsReader;
 
 public class PrefsAccessHandler implements AccessHandler {
-//	protected Preferences prefs = Preferences.systemNodeForPackage(LoginProcessor.class).node("access");
-	protected static final SettingsReader prefs = SettingsReader.settingsForPath("auth.access",true);
+	protected final SettingsReader prefs = SettingsReader.settingsForPath("auth.access",true);
+	protected static SettingsReader mapping;
 	protected UserPresentation user = null;
 	
 	public PrefsAccessHandler() {
 		super();
+		if(mapping == null) {
+			mapping = SettingsReader.settingsForPath("auth.groupMapping",false);
+			if(mapping == null)
+				mapping = SettingsReader.DUMMY;
+		}
 	}
 	
 	public void setUser (UserPresentation aUser) {
@@ -49,35 +54,67 @@ public class PrefsAccessHandler implements AccessHandler {
 	}
 
 	public int accessLevel (Object obj) throws AccessHandler.UnlistedModuleException {
+		String nodeName = null;
 		if(obj instanceof com.webobjects.eocontrol.EOEnterpriseObject) {
-			obj = ((com.webobjects.eocontrol.EOEnterpriseObject)obj).entityName();
+			nodeName = ((com.webobjects.eocontrol.EOEnterpriseObject)obj).entityName();
 		} else if(obj instanceof com.webobjects.appserver.WOComponent) {
 			String name = ((com.webobjects.appserver.WOComponent)obj).name();
 			int idx = name.lastIndexOf('.');
-			obj = (idx <0)?name:name.substring(idx +1);
+			nodeName = (idx <0)?name:name.substring(idx +1);
+		} else if (obj instanceof String) {
+			nodeName = (String)obj;
+		} else if(obj != null) {
+			nodeName = obj.toString();
+			if(nodeName.length() == 0)
+				nodeName = null;
 		}
-		if(obj == null || obj.toString().length() == 0)
+		if(nodeName == null)
 			throw new IllegalArgumentException ("Non empty String required"); 
 		if(user == null) {
-				return 0;
+			return 0;
 		}
-		SettingsReader node = SettingsReader.settingsForPath("auth.access." + obj,false);
+		String modifier = null;
+		int idx = nodeName.indexOf('@');
+		if(idx > 0) {
+			modifier = nodeName.substring(idx + 1);
+			nodeName = nodeName.substring(0,idx);
+		}
+		SettingsReader node = prefs.subreaderForPath(nodeName, false);
 		if(node == null)
-			throw new AccessHandler.UnlistedModuleException("Access to this module is not described");
-		return accessLevel(node, user);
+			throw new AccessHandler.UnlistedModuleException(
+					"Access to this module is not described");
+		return accessLevel(node, modifier, user);
 	}
 	
-	public static int accessLevel (SettingsReader node, UserPresentation user) {
-		SettingsReader mapping = SettingsReader.settingsForPath("auth.groupMapping",false);
-		java.util.Enumeration enu = node.keyEnumerator();
+	public static int accessLevel (SettingsReader node, String modifier,UserPresentation user) {
 		int result = 0;
 		int curr = 0;
+		java.util.Enumeration enu = null;
+		if(modifier != null) {
+			SettingsReader mod = node.subreaderForPath("modifiers." + modifier, false);
+			if(mod != null) {
+				boolean found = false;
+				enu = mod.keyEnumerator();
+				while (enu.hasMoreElements()) {
+					String key = (String)enu.nextElement();
+					curr = node.getInt(key,0);
+					key = mapping.get(key, key);
+					if(key.equals("*") || user.isInGroup(key)) {
+						found = true;
+						result = result | curr;
+					}
+				}
+				if(found)
+					return result;
+			} else {
+				System.err.println("Undescribed modifier: " + modifier);
+			}
+		}
+		enu = node.keyEnumerator();
 		while (enu.hasMoreElements()) {
 			String key = (String)enu.nextElement();
 			curr = node.getInt(key,0);
-			if(mapping != null) {
-				key = mapping.get(key, key);
-			}
+			key = mapping.get(key, key);
 			if(key.equals("*") || user.isInGroup(key))
 				result = result | curr;
 		}

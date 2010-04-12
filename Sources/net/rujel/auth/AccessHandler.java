@@ -32,7 +32,7 @@ import java.lang.reflect.*;
 
 public interface AccessHandler {
 	public static final String  CLASSNAME= "accessHandlerClass";
-	public static final String ownNotificationName = "Own created object";
+//	public static final String ownNotificationName = "Own created object";
 	
 //	public AccessHandler(UserPresentation aUser);
 	

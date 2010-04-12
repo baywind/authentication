@@ -44,14 +44,31 @@ import com.webobjects.foundation.*;
 
 public class ReadAccess implements NSKeyValueCodingAdditions {
 	public static final NSArray accessKeys = new NSArray (new String[] {"read","create","edit","delete"});
+	public static interface Modifier {
+		public String interpret(Object obj, String subPath, WOContext ctx);
+		public Number sort();
+	}
 
 	protected WOSession ses;
 	protected UserPresentation _user;
 	protected NamedFlags defaultAccess = DegenerateFlags.ALL_TRUE;
 	protected static PlistReader defaults;
+	protected Modifier[] modifiers;
 	
 	public ReadAccess(WOSession session) {
 		ses = session;
+		NSArray mods = (NSArray)ses.valueForKeyPath("modules.modifiers");
+		if(mods != null && mods.count() > 0) {
+			modifiers = new Modifier[mods.count()];
+			for (int i = 0; i < modifiers.length; i++) {
+				try {
+					modifiers[i] = (Modifier) mods.objectAtIndex(i);
+				} catch (ClassCastException e) {
+					Logger.getLogger("auth").log(Level.WARNING,"Illegal modifier provided",
+							new Object[] {ses,mods.objectAtIndex(i),e});
+				}
+			}
+		}
 	}
 	
 	public static void mergeDefaultAccess(NSDictionary toMerge) {
@@ -71,7 +88,7 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 		return _user;
 	}
 	
-	public NamedFlags accessForObject(Object obj) {
+	public NamedFlags accessForObject(String obj) {
 		if(user() == null) {
 			throw new IllegalStateException ("Can't get user to determine access");
 		} else {
@@ -80,9 +97,16 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 				level = user().accessLevel(obj);
 			} catch (AccessHandler.UnlistedModuleException e) {
 				if(defaults != null && obj instanceof String) {
-					PlistReader acc = defaults.subreaderForPath((String)obj, false);
+					String nodeName = (String)obj;
+					String modifier = null;
+					int idx = nodeName.indexOf('@');
+					if(idx > 0) {
+						modifier = nodeName.substring(idx + 1);
+						nodeName = nodeName.substring(0,idx);
+					}
+					PlistReader acc = defaults.subreaderForPath(nodeName, false);
 					if(acc != null)
-						level = PrefsAccessHandler.accessLevel(acc, user());
+						level = PrefsAccessHandler.accessLevel(acc, modifier, user());
 				}
 				if(level < 0) {
 					Object [] args = new Object[] {ses,obj,
@@ -99,39 +123,49 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 	
 	protected NSMutableDictionary accessCache = new NSMutableDictionary();
 	
-	public NamedFlags cachedAccessForObject(Object obj) {
+	public NamedFlags cachedAccessForObject(String obj) {
 		if(obj == null)
 			return defaultAccess;
 		NamedFlags result = defaultAccess; 
-		if(obj instanceof String) {
-			result = (NamedFlags)accessCache.objectForKey(obj);
-			if(result == null) {
-				result = accessForObject(obj);
-				accessCache.setObjectForKey(result, obj);
-			}
-		} else if (obj instanceof EOEnterpriseObject) {
-			EOEnterpriseObject eo = (EOEnterpriseObject) obj;
-			//TODO: qualified access for specific objects
-			result = cachedAccessForObject(eo.entityName());
-			if(result.flagForKey("create")) {
-				EOEditingContext ec = eo.editingContext();
-				if(ec == null || ec.insertedObjects().contains(eo))
-					result = DegenerateFlags.ALL_TRUE;
-			}
-		} else if(obj instanceof WOComponent) {
-			String name = ((com.webobjects.appserver.WOComponent)obj).name();
-			int idx = name.lastIndexOf('.');
-			obj = (idx <0)?name:name.substring(idx +1);
-			result = cachedAccessForObject(obj);
-		} else {
+		result = (NamedFlags)accessCache.objectForKey(obj);
+		if(result == null) {
 			result = accessForObject(obj);
+			accessCache.setObjectForKey(result, obj);
 		}
 		return result;
 	}
-	
+
 	public NamedFlags cachedAccessForObject(Object obj, String subPath) {
-		//TODO: employ subPath
-		return cachedAccessForObject(obj);
+		String acc = null;
+		if(modifiers != null) {
+			WOContext ctx = ses.context();
+			for (int i = 0; i < modifiers.length; i++) {
+				acc = modifiers[i].interpret(obj, subPath, ctx);
+				if(acc != null)
+					break;
+			}
+		}
+		if (acc == null) {
+			if (obj instanceof EOEnterpriseObject) {
+				EOEnterpriseObject eo = (EOEnterpriseObject) obj;
+				NamedFlags result = cachedAccessForObject(eo.entityName());
+				if(result.flagForKey("create")) {
+					EOEditingContext ec = eo.editingContext();
+					if(ec == null || ec.globalIDForObject(eo).isTemporary())
+						result = DegenerateFlags.ALL_TRUE;
+				}
+			} else if(obj instanceof WOComponent) {
+				acc = ((com.webobjects.appserver.WOComponent)obj).name();
+				int idx = acc.lastIndexOf('.');
+				if(idx > 0)
+					acc = acc.substring(idx +1);
+			} else {
+				acc = obj.toString();
+			}
+			if(subPath != null)
+				acc = acc + '@' + subPath;
+		}
+		return cachedAccessForObject(acc);
 	}
 
 
@@ -180,5 +214,4 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 	public Object valueForKey(String key) {
 		return valueForKeyPath(key);
 	}
-
 }
