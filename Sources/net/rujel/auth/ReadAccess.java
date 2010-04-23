@@ -156,7 +156,10 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 		if (acc == null) {
 			if (obj instanceof EOEnterpriseObject) {
 				EOEnterpriseObject eo = (EOEnterpriseObject) obj;
-				NamedFlags result = cachedAccessForObject(eo.entityName());
+				acc = eo.entityName();
+				if(subPath != null)
+					acc = acc + '@' + subPath;
+				NamedFlags result = cachedAccessForObject(acc);
 				if(result.flagForKey("create")) {
 					EOEditingContext ec = eo.editingContext();
 					if(ec == null || ec.globalIDForObject(eo).isTemporary())

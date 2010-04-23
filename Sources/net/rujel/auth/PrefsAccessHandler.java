@@ -97,7 +97,9 @@ public class PrefsAccessHandler implements AccessHandler {
 				enu = mod.keyEnumerator();
 				while (enu.hasMoreElements()) {
 					String key = (String)enu.nextElement();
-					curr = node.getInt(key,0);
+					curr = mod.getInt(key,0);
+					if(curr == 0)
+						continue;
 					key = mapping.get(key, key);
 					if(key.equals("*") || user.isInGroup(key)) {
 						found = true;
@@ -113,7 +115,11 @@ public class PrefsAccessHandler implements AccessHandler {
 		enu = node.keyEnumerator();
 		while (enu.hasMoreElements()) {
 			String key = (String)enu.nextElement();
+			if(key.equals("modifiers"))
+				continue;
 			curr = node.getInt(key,0);
+			if(curr == 0)
+				continue;
 			key = mapping.get(key, key);
 			if(key.equals("*") || user.isInGroup(key))
 				result = result | curr;
