@@ -46,7 +46,9 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 	public static final NSArray accessKeys = new NSArray (new String[] {"read","create","edit","delete"});
 	public static interface Modifier {
 		public String interpret(Object obj, String subPath, WOContext ctx);
+//		public String validate(Object obj, String subPath, WOContext ctx);
 		public Number sort();
+		public String message();
 	}
 
 	protected WOSession ses;
@@ -54,10 +56,11 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 	protected NamedFlags defaultAccess = DegenerateFlags.ALL_TRUE;
 	protected static PlistReader defaults;
 	protected Modifier[] modifiers;
+	protected String message;
 	
 	public ReadAccess(WOSession session) {
 		ses = session;
-		NSArray mods = (NSArray)ses.valueForKeyPath("modules.modifiers");
+		NSArray mods = (NSArray)ses.valueForKeyPath("modules.accessModifier");
 		if(mods != null && mods.count() > 0) {
 			modifiers = new Modifier[mods.count()];
 			for (int i = 0; i < modifiers.length; i++) {
@@ -136,13 +139,18 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 	}
 
 	public NamedFlags cachedAccessForObject(Object obj, String subPath) {
+		message = null;
 		String acc = null;
 		if(modifiers != null) {
 			WOContext ctx = ses.context();
 			for (int i = 0; i < modifiers.length; i++) {
+				if(modifiers[i] == null)
+					continue;
 				acc = modifiers[i].interpret(obj, subPath, ctx);
-				if(acc != null)
+				if(acc != null) {
+					message = modifiers[i].message();
 					break;
+				}
 			}
 		}
 		if (acc == null) {
@@ -154,6 +162,7 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 					if(ec == null || ec.globalIDForObject(eo).isTemporary())
 						result = DegenerateFlags.ALL_TRUE;
 				}
+				return result;
 			} else if(obj instanceof WOComponent) {
 				acc = ((com.webobjects.appserver.WOComponent)obj).name();
 				int idx = acc.lastIndexOf('.');
@@ -168,14 +177,34 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 		return cachedAccessForObject(acc);
 	}
 
+/*	public Boolean validate(Object obj, String subPath) {
+		if(modifiers == null)
+			return Boolean.TRUE;
+		WOContext ctx = ses.context();
+		boolean result = true;
+		for (int i = 0; i < modifiers.length; i++) {
+			if(modifiers[i] == null)
+				continue;
+			String res = modifiers[i].validate(obj, subPath, ctx);
+			if(res != null) {
+				result = false;
+				ses.takeValueForKey(res, "message");
+			}
+		}
+		return Boolean.valueOf(result);
+	}*/
 
 	public void takeValueForKeyPath(Object keyPath, String value) {
 		throw new UnsupportedOperationException("This is read-only value");
 	}
 
 	public Object valueForKeyPath(String keyPath) {
+		if(keyPath.equals("message"))
+			return message;
 		int dotIdx = keyPath.indexOf('.');
 		String flag = (dotIdx <0)?keyPath:keyPath.substring(0, dotIdx);
+		if(flag.equals("validate") && modifiers == null)
+			return Boolean.TRUE;
 		Object obj = null;
 		String subPath = null;
 		if(dotIdx > 0) {
@@ -200,6 +229,30 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 			}
 		} else {
 			obj = ses.context().component();
+		}
+		if(flag.equals("save") || flag.equals("_save")) {
+			boolean negate = (flag.charAt(0) == '_');
+			subPath = (subPath==null)?"save":"save:" + subPath;
+			flag = "edit";
+			if(obj instanceof EOEnterpriseObject) {
+				EOEnterpriseObject eo = (EOEnterpriseObject)obj;
+				EOEditingContext ec = eo.editingContext();
+				if(ec == null) {
+					flag = "create";
+				} else {
+					if(ec.insertedObjects().contains(eo))
+						flag = "create";
+					else if(ec.deletedObjects().contains(eo))
+						flag = "delete";
+					else if(ec.updatedObjects().contains(eo))
+						flag = "edit";
+					else
+						flag = "read";
+				}
+			}
+			if(negate)
+				flag = '_' + flag;
+//			return validate(obj, subPath);
 		}
 		NamedFlags result = cachedAccessForObject(obj,subPath);
 		if(flag.equals("FLAGS"))
