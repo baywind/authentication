@@ -32,10 +32,12 @@ package net.rujel.auth;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
+import net.rujel.auth.UserPresentation.DummyUser;
 import net.rujel.reusables.DegenerateFlags;
 import net.rujel.reusables.ImmutableNamedFlags;
 import net.rujel.reusables.NamedFlags;
 import net.rujel.reusables.PlistReader;
+import net.rujel.reusables.Various;
 
 import com.webobjects.appserver.*;
 import com.webobjects.eocontrol.EOEditingContext;
@@ -86,6 +88,10 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 			_user = (UserPresentation)ses.valueForKey("user");
 			if(_user != null) {
 				defaultAccess = accessForObject("default");
+				if(_user instanceof DummyUser) {
+					defaultAccess = new DegenerateFlags(_user.isInGroup(null));
+					accessCache = null;
+				}
 			}
 		}
 		return _user;
@@ -95,6 +101,8 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 		if(user() == null) {
 			throw new IllegalStateException ("Can't get user to determine access");
 		} else {
+			if(accessCache == null)
+				return defaultAccess;
 			int level = -1;
 			try {
 				level = user().accessLevel(obj);
@@ -127,7 +135,7 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 	protected NSMutableDictionary accessCache = new NSMutableDictionary();
 	
 	public NamedFlags cachedAccessForObject(String obj) {
-		if(obj == null)
+		if(obj == null || accessCache == null)
 			return defaultAccess;
 		NamedFlags result = defaultAccess; 
 		result = (NamedFlags)accessCache.objectForKey(obj);
@@ -140,6 +148,8 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 
 	public NamedFlags cachedAccessForObject(Object obj, String subPath) {
 		message = null;
+		if(accessCache == null || obj == null)
+			return defaultAccess;
 		String acc = null;
 		if(modifiers != null) {
 			WOContext ctx = ses.context();
@@ -197,7 +207,7 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 		return Boolean.valueOf(result);
 	}*/
 
-	public void takeValueForKeyPath(Object keyPath, String value) {
+	public void takeValueForKeyPath(Object value, String keyPath) {
 		throw new UnsupportedOperationException("This is read-only value");
 	}
 
@@ -206,8 +216,19 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 			return message;
 		int dotIdx = keyPath.indexOf('.');
 		String flag = (dotIdx <0)?keyPath:keyPath.substring(0, dotIdx);
-		if(flag.equals("validate") && modifiers == null)
-			return Boolean.TRUE;
+//		if(flag.equals("validate") && modifiers == null) {
+//			return Boolean.TRUE;
+//		}
+		if(flag.equals("modifier")) {
+			if(modifiers == null)
+				return null;
+			flag = keyPath.substring(dotIdx+1);
+			for (int i = 0; i < modifiers.length; i++) {
+				if(modifiers[i].getClass().getName().endsWith(flag))
+					return modifiers[i];
+			}
+			return null;
+		}
 		Object obj = null;
 		String subPath = null;
 		if(dotIdx > 0) {
@@ -220,6 +241,36 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 			while(component != null) {
 				try {
 					obj = component.valueForKeyPath(path);
+					if(obj == null) {
+						obj = component;
+						atIdx = path.lastIndexOf('.');
+						if(atIdx > 0) {
+							obj = component.valueForKeyPath(path.substring(0,atIdx));
+							path = path.substring(atIdx +1);
+						}
+						Class objClass = obj.getClass();
+						try {
+							java.lang.reflect.Field field = objClass.getField(path);
+							objClass = field.getType();
+						} catch (Exception e) {
+							try {
+								java.lang.reflect.Method method = objClass.getMethod(
+										path, (Class[])null);
+								objClass = method.getReturnType();
+							} catch (Exception e2) {
+								Logger.getLogger("auth").log(Level.WARNING,
+										"Could not get Class for null value: '" +
+										keyPath + "' in component " + component.name(),
+										new Object[] {ses,e2});
+								return defaultAccess;
+							}
+						}
+						path = objClass.getName();
+						atIdx = path.lastIndexOf('.');
+						if(atIdx > 0)
+							path = path.substring(atIdx +1);
+						obj = path;
+					}
 					break;
 				} catch (NSKeyValueCoding.UnknownKeyException e) {
 					component = component.parent();
@@ -263,8 +314,19 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 		return result.valueForKey(flag);
 	}
 
-	public void takeValueForKey(Object key, String value) {
-		takeValueForKeyPath(key, value);
+	public void takeValueForKey(Object value, String key) {
+		if("dummyUser".equals(key)) {
+			if(value == null) {
+				_user = null;
+				accessCache.removeAllObjects();
+				defaultAccess = DegenerateFlags.ALL_TRUE;
+			} else {
+				defaultAccess = new DegenerateFlags(Various.boolForObject(value));
+				accessCache = null;
+			}
+		} else {
+			takeValueForKeyPath(value,key);
+		}
 	}
 
 	public Object valueForKey(String key) {
