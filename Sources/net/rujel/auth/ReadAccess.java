@@ -182,6 +182,8 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 				int idx = acc.lastIndexOf('.');
 				if(idx > 0)
 					acc = acc.substring(idx +1);
+			} else if(obj instanceof NSKeyValueCodingAdditions) {
+				acc = (String)((NSKeyValueCodingAdditions)obj).valueForKey("entityName");
 			} else {
 				acc = obj.toString();
 			}
@@ -238,7 +240,7 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 				subPath = keyPath.substring(atIdx +1);
 			String path = (atIdx <0)?keyPath.substring(dotIdx +1)
 					:keyPath.substring(dotIdx +1, atIdx -1);
-			WOComponent component = ses.context().component(); 
+			WOComponent component = (path.equals("session"))?null:ses.context().component(); 
 			while(component != null) {
 				try {
 					obj = component.valueForKeyPath(path);
@@ -278,10 +280,9 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 				}
 			}
 			if(component == null)
+				obj = ses.objectForKey("readAccess");
+			if(obj == null)
 				obj = path;
-			if(obj == null) {
-			//TODO: nullValue behaviour
-			}
 		} else {
 			obj = ses.context().component();
 		}
