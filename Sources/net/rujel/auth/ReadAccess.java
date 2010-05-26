@@ -29,6 +29,7 @@
 
 package net.rujel.auth;
 
+import java.util.Enumeration;
 import java.util.logging.Level;
 import java.util.logging.Logger;
 
@@ -294,14 +295,22 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 				if(ec == null) {
 					flag = "create";
 				} else {
-					if(ec.insertedObjects().contains(eo))
+					if(ec.insertedObjects().contains(eo)) {
 						flag = "create";
-					else if(ec.deletedObjects().contains(eo))
+					} else if(ec.deletedObjects().contains(eo)) {
 						flag = "delete";
-					else if(ec.updatedObjects().contains(eo))
-						flag = "edit";
-					else
+					} else if(ec.updatedObjects().contains(eo)) {
+						NSDictionary snapshot = ec.committedSnapshotForObject(eo);
+						snapshot = eo.changesFromSnapshot(snapshot);
+						Enumeration enu = snapshot.objectEnumerator();
 						flag = "read";
+						while (enu.hasMoreElements()) {
+							if(!(enu.nextElement() instanceof NSArray))
+								flag = "edit";
+						}
+					} else {
+						flag = "read";
+					}
 				}
 			}
 			if(negate)
