@@ -353,4 +353,25 @@ ipSelection:
 	public static WOComponent loginAction (WOContext ctx) {
 		return loginAction(ctx,prefs.get("welcomeAction","default"));
 	}
+	
+	public static String bytesToString(byte[] bytes, StringBuilder buf) {
+		if(bytes == null) return null;
+		if(bytes.length == 0) return "";
+		if(buf == null)
+			buf = new StringBuilder(bytes.length * 2);
+		for (int i = 0; i < bytes.length; i++) {
+			int tmp = bytes[i] & 0xf0;
+			tmp >>>=4;
+			if(tmp < 10)
+				buf.append(tmp);
+			else
+				buf.append((char)('a' + tmp -10));
+			tmp = bytes[i] & 0x0f;
+			if(tmp < 10)
+				buf.append(tmp);
+			else
+				buf.append((char)('a' + tmp -10));
+			}
+		return buf.toString();
+	}
 }

@@ -32,6 +32,8 @@ import java.util.Vector;
 
 public interface UserPresentation {
 
+	/** Returns string representation that uniquely identifies this user
+	 * and may be used for user authentication in compatimle LoginHandler */
 	public String toString();
 	
 	public String shortName();
