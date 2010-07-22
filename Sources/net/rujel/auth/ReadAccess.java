@@ -142,6 +142,8 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 		result = (NamedFlags)accessCache.objectForKey(obj);
 		if(result == null) {
 			result = accessForObject(obj);
+			if(accessCache == null)
+				return defaultAccess;
 			accessCache.setObjectForKey(result, obj);
 		}
 		return result;
