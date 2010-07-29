@@ -35,6 +35,7 @@ public class PrefsAccessHandler implements AccessHandler {
 	protected final SettingsReader prefs = SettingsReader.settingsForPath("auth.access",true);
 	protected static SettingsReader mapping;
 	protected UserPresentation user = null;
+	protected static boolean tryUnmapped = false;
 	
 	public PrefsAccessHandler() {
 		super();
@@ -43,6 +44,7 @@ public class PrefsAccessHandler implements AccessHandler {
 			if(mapping == null)
 				mapping = SettingsReader.DUMMY;
 		}
+		tryUnmapped = SettingsReader.boolForKeyPath("auth.tryUnmappedGroups", false);
 	}
 	
 	public void setUser (UserPresentation aUser) {
@@ -100,10 +102,15 @@ public class PrefsAccessHandler implements AccessHandler {
 					curr = mod.getInt(key,0);
 					if(curr == 0)
 						continue;
-					key = mapping.get(key, key);
-					if(key.equals("*") || user.isInGroup(key)) {
+					if(tryUnmapped && key.equals("*") || user.isInGroup(key)) {
 						found = true;
 						result = result | curr;
+					} else {
+						key = mapping.get(key, key);
+						if(key.equals("*") || user.isInGroup(key)) {
+							found = true;
+							result = result | curr;
+						}
 					}
 				}
 				if(found)
@@ -120,9 +127,13 @@ public class PrefsAccessHandler implements AccessHandler {
 			curr = node.getInt(key,0);
 			if(curr == 0)
 				continue;
-			key = mapping.get(key, key);
-			if(key.equals("*") || user.isInGroup(key))
+			if(tryUnmapped && key.equals("*") || user.isInGroup(key)) {
 				result = result | curr;
+			} else {
+				key = mapping.get(key, key);
+				if(key.equals("*") || user.isInGroup(key))
+					result = result | curr;
+			}
 		}
 		return result;
 	}

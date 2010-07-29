@@ -122,7 +122,18 @@ public class LdapUser extends UserPresentation.DefaultImplementation {
 	}	
 	
 	public String toString() {
-		return myGroups[0].toString();
+		Name name = LdapAuthentication.baseDN();
+		if(name != null) {
+			try {
+				name = (Name)name.clone();
+				name.addAll(myGroups[0]);
+			} catch (Exception e) {
+				name = myGroups[0];
+			}
+		} else {
+			name = myGroups[0];
+		}
+		return name.toString();
 	}
 	
 	public String shortName() {
