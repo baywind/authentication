@@ -178,7 +178,8 @@ ipSelection:
 		 return ((CoreApplication)WOApplication.application());
 	 } */
 	
-	public static UserPresentation processLogin(WORequest req) throws LoginHandler.AuthenticationFailedException {
+	public static UserPresentation processLogin(WORequest req) 
+						throws LoginHandler.AuthenticationFailedException {
 		String[] args = loginHandler.args();
 		Object[] values = new Object[args.length];
 		for (int i = 0; i < args.length; i++) {
@@ -206,7 +207,8 @@ ipSelection:
 		}*/
 		String id = loginHandler.identityArg();
 		if(id != null && prefs.getBoolean("bruteforcingProtect",false)) {
-			bfp.checkAttempt(WORequestAdditions.originatingIPAddress(req),req.formValueForKey(id));
+			bfp.checkAttempt(WORequestAdditions.originatingIPAddress(req),
+					req.formValueForKey(id));
 		}
 		
 		return loginHandler.authenticate(values);
@@ -233,17 +235,13 @@ ipSelection:
 		return message;
 	}
 	
-/*	public static boolean userCanLogin(UserPresentation user) {
-		AccessHandler ah = AccessHandler.Generator.generateForUser(user);
-		if(ah.canLogin()) {
-			user.setAccessHandler(ah);
-			return true;
-		} else {
-			return false;
-		}
-	} */
-
-	//public static WOComponent processLogin (WOContext ctx) {
+	/**
+	 * Analyses information in <code>ctx</code> to decide whether accept 
+	 * login attempt or return some other page
+	 * @param ctx - WOContext containing login information in request
+	 * @return in case of successful login UserPresentation object,
+	 * otherwise - WOComponent to show in response 
+	 */
 	public static Object validUserForLogin (WOContext ctx) {
 		WORequest req = ctx.request();
 		//WOComponent nextPage = null;
@@ -251,7 +249,8 @@ ipSelection:
 		UserPresentation user = null;
 		//String username = req.stringFormValueForKey(loginHandler.identityArg());
 		try {
-			bfp.checkAttempt(WORequestAdditions.originatingIPAddress(req),req.formValueForKey(loginHandler.identityArg()));
+			bfp.checkAttempt(WORequestAdditions.originatingIPAddress(req),
+					req.formValueForKey(loginHandler.identityArg()));
 			user = processLogin(req);
 			if (user == null && !prefs.getBoolean("allowNone",false)) {
 				message = prefs.get("denyNoneMessage","User should be specified");
@@ -264,7 +263,7 @@ ipSelection:
 			Integer timeout = bfp.badAttempt(WORequestAdditions.originatingIPAddress(req),ex);
 			WOComponent nextPage = loginComponent(ctx,message);
 			try {
-			nextPage.takeValueForKey(timeout,"timeout");
+				nextPage.takeValueForKey(timeout,"timeout");
 			} catch (NSKeyValueCoding.UnknownKeyException e) {
 				
 			}

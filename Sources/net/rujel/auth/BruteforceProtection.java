@@ -91,12 +91,14 @@ public class BruteforceProtection {
 	}
 
 	//public void checkHost(String host) throws LoginHandler.AuthenticationFailedException {
-	public void checkAttempt(String host,Object uid) throws LoginHandler.AuthenticationFailedException {
+	public void checkAttempt(String host,Object uid) 
+				throws LoginHandler.AuthenticationFailedException {
 		if(bruteforcingProtect) {
 			Object counter = suspiciousHosts.objectForKey(host);
 			if(counter instanceof TimeoutTask) {
 				((TimeoutTask)counter).recycle();
-				logger.warning("Bruteforcing attempt from host: " + host);
+				logger.warning("Bruteforcing attempt from host: " + host +
+						" user: " + uid);
 				throw new LoginHandler.AuthenticationFailedException(LoginHandler.REFUSED);
 			}
 			if(uid != null) {
@@ -106,7 +108,7 @@ public class BruteforceProtection {
 					if(result > 10) {
 						((TimeoutTask)counter).recycle();
 						counter = new TimeoutTask(suspiciousHosts,host,result*2);
-						logger.log(Level.WARNING,"Bruteforcing attempt from user",uid);
+						logger.log(Level.WARNING,"Bruteforcing attempt from user. host: ",uid);
 						throw new LoginHandler.AuthenticationFailedException(LoginHandler.REFUSED,"Too many login attempts for user");
 					}
 				}
