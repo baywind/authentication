@@ -99,8 +99,13 @@ public class LdapAuthentication implements LoginHandler {
 		Hashtable env = new Hashtable();
 		env.put(Context.INITIAL_CONTEXT_FACTORY, prefs.get("contextFactory","com.sun.jndi.ldap.LdapCtxFactory"));
 		String url = prefs.get("providerUrl","ldap://localhost:389");
-		if (baseDN != null && baseDN.size() > 0)
-			url = url + "/" + baseDN.toString();
+		if (baseDN != null && baseDN.size() > 0) {
+			StringBuilder buf = new StringBuilder(url);
+			if(buf.charAt(buf.length() -1) != '/')
+				buf.append('/');
+			buf.append(baseDN.toString());
+			url = buf.toString();
+		}
 		env.put(Context.PROVIDER_URL,url);
 		if(prefs.getBoolean("useSSL", false)) {
 			String proto = prefs.get("securityProtocol",null);
