@@ -151,4 +151,24 @@ public interface UserPresentation {
 			return null;
 		}		
 	}
+	
+	public static class Guest extends DefaultImplementation {
+		
+		public Guest() {
+			super();
+			accessHandler = AccessHandler.Generator.generateForUser(this);
+		}
+
+		public Object[] listGroups() {
+			return null;
+		}
+		
+		public String toString() {
+			return "GUEST";
+		}
+		
+		public boolean isInGroup(Object grp) {
+			return false;
+		}
+	}
 }
