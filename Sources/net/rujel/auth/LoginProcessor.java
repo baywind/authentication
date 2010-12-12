@@ -88,10 +88,6 @@ public class LoginProcessor {
 			}*/
 		return nextPage;
 	}
-	/*	
-	public static WOComponent loginComponent(WOContext aContext, LoginHandler.AuthenticationFailedException ex) {
-		return loginComponent(aContext,treatAuthenticationException(ex));
-	}*/
 	
 	public static WORedirect secureRedirect(String action, WOContext ctx, boolean secure) {
 		WORequest req = ctx.request();
@@ -120,7 +116,8 @@ ipSelection:
 							break ipSelection;
 						} else {
 							int l = curr.length() - 1;
-							if(l > len && curr.charAt(l) == '*' && sourceHost.startsWith(curr.substring(0,l))) {
+							if(l > len && curr.charAt(l) == '*' &&
+									sourceHost.startsWith(curr.substring(0,l))) {
 								host = urlsNode.get(curr,host);
 								len = l;
 							}
@@ -145,8 +142,8 @@ ipSelection:
 		if (action==null) {
 			uri = req.uri();
 			if(ctx.hasSession() && !ctx.session().isTerminating() &&
-					ctx.session().storesIDsInURLs() && !uri.contains(WOContext.SessionIDBindingKey + '=')) {
-				//req.stringFormValueForKey(WOContext.SessionIDBindingKey) == null
+					ctx.session().storesIDsInURLs() &&
+							!uri.contains(WOContext.SessionIDBindingKey + '=')) {
 				char amp = (uri.indexOf('?') > 0)?'&':'?';
 				uri = uri + amp + WOContext.SessionIDBindingKey + '=' + ctx.session().sessionID();
 			}
@@ -158,16 +155,6 @@ ipSelection:
 			uri = uri.substring(idx);
 		}
 		String url = (host==null)?uri:host +  uri;
-		/*
-		 boolean same = (action == null);
-		 String requestHandlerKey = (same)?req.requestHandlerKey():"wa";
-		 String aRequestHandlerPath = (same)?req.requestHandlerPath():action;
-		 String aQueryString = (same)?req.queryString():null;
-		 if (ctx.hasSession() && ctx.session().storesIDsInURLs() && (aQueryString == null || aQueryString.length() < 1)) {
-			 aQueryString = WORequest.SessionIDKey + "=" + ctx.session().sessionID();
-		 }
-		 String url = ctx.completeURLWithRequestHandlerKey(requestHandlerKey,aRequestHandlerPath,aQueryString,secure,0);
-		 */
 		WORedirect result = new WORedirect(ctx);
 		result.setUrl(url);
 		return result; 
@@ -214,7 +201,8 @@ ipSelection:
 		return loginHandler.authenticate(values);
 	}
 	
-	public static String treatAuthenticationException (LoginHandler.AuthenticationFailedException ex) {
+	public static String treatAuthenticationException 
+												(LoginHandler.AuthenticationFailedException ex) {
 		String message = prefs.get("authFailedMessage","Authentication failed");
 		switch (ex.getReason()) {
 			case LoginHandler.ERROR:
@@ -227,7 +215,8 @@ ipSelection:
 				message = message + ": " + prefs.get("badCredentialMessage","Invalid Credential");
 				break;
 			case LoginHandler.REFUSED:
-				message = message + ": " + prefs.get("loginRefusedMessage","Your login attempt was refused");
+				message = message + ": " + 
+								prefs.get("loginRefusedMessage","Your login attempt was refused");
 				break;
 			default:
 				break;
@@ -259,7 +248,10 @@ ipSelection:
 			}
 		} catch (LoginHandler.AuthenticationFailedException ex) {
 			message = treatAuthenticationException(ex);
-			logger.log(Level.FINE,message,ex.getUserId());
+			if(ex.getReason() == LoginHandler.ERROR)
+				logger.log(Level.WARNING,message,ex);
+			else
+				logger.log(Level.FINE,message,ex.getUserId());
 			Integer timeout = bfp.badAttempt(WORequestAdditions.originatingIPAddress(req),ex);
 			WOComponent nextPage = loginComponent(ctx,message);
 			try {
@@ -318,7 +310,8 @@ ipSelection:
 		/*if(req.method().equalsIgnoreCase("GET"))
 			return enterLogin(ctx);
 		else*/
-			if(loginHandler.identityArg() != null && req.formValueForKey(loginHandler.identityArg()) == null)
+			if(loginHandler.identityArg() != null &&
+					req.formValueForKey(loginHandler.identityArg()) == null)
 				return enterLogin(ctx);
 		
 		Object result = validUserForLogin(ctx);

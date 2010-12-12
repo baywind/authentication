@@ -114,7 +114,6 @@ public class LdapUser extends UserPresentation.DefaultImplementation {
 			Attribute atr = atrs.get(property);
 			if(atr == null) return null;
 			return atr.get();
-			//return dirContext.getAttributes(myGroups[0],new String[] {property}).get(property).get();
 		} catch (javax.naming.NamingException ex) {
 			logger.throwing("LdapUser","propertyNamed",ex);
 			return null;
@@ -211,16 +210,4 @@ public class LdapUser extends UserPresentation.DefaultImplementation {
 		}
 		return result.toArray();
 	}
-	/*	
-	protected AccessHandler accessHandler = null;
-	public void setAccessHandler (AccessHandler ah) {
-		accessHandler = ah;
-		if(!accessHandler.userIs(this))
-			accessHandler.setUser(this);
-	}
-
-	public int accessLevel(Object obj)  throws AccessHandler.UnlistedModuleException{
-		return accessHandler.accessLevel(obj);
-	} */
-	
 }

@@ -31,32 +31,18 @@ package net.rujel.auth;
 import java.lang.reflect.*;
 
 public interface LoginHandler {
-/*	public static final Integer UNAUTHORIZED = new Integer(-1);
-	public static final Integer GUEST = new Integer(0);
-	public static final int ROOT = new Integer(1); */
 	public static final String  CLASSNAME= "loginHandlerClass";
 	public static final int ERROR = 0;
 	public static final int IDENTITY = 1;
 	public static final int CREDENTIAL = 2;
 	public static final int REFUSED = 3;
-//	public static final String STREAM = "INPUT_STREAM";
-
-	
-//	public LoginHandler();
-	
-/*		
-	
-	public Class resultClass(); */
-	
-	//public WOComponent loginComponent(WOContext aContext);
 	
 	public String[] args ();
 	
 	public String identityArg();
 	
-	public UserPresentation authenticate (Object [] args) throws AuthenticationFailedException, IllegalArgumentException;
-	
-//	public UserPresentation processLogin(WORequest reqest) throws AuthenticationFailedException, IllegalArgumentException;
+	public UserPresentation authenticate (Object [] args)
+				throws AuthenticationFailedException, IllegalArgumentException;
 	
 	public static final LoginHandler DUMMY = new LoginHandler() {
 		public String[] args () {
@@ -67,7 +53,8 @@ public interface LoginHandler {
 			return null;
 		}
 		
-		public UserPresentation authenticate (Object [] args) throws AuthenticationFailedException, IllegalArgumentException {
+		public UserPresentation authenticate (Object [] args)
+					throws AuthenticationFailedException, IllegalArgumentException {
 			return new UserPresentation.DummyUser(true);
 		}
 	};
@@ -136,9 +123,9 @@ public interface LoginHandler {
 		public static LoginHandler generate() {
 			LoginHandler loginHandler = null;
 			try {
-				String lhClassName = net.rujel.reusables.SettingsReader.stringForKeyPath("auth." + LoginHandler.CLASSNAME,null);
+				String lhClassName = net.rujel.reusables.SettingsReader.stringForKeyPath(
+						"auth." + LoginHandler.CLASSNAME,null);
 				if(lhClassName == null) return DUMMY;
-				//prefs.get(LoginHandler.CLASSNAME,"net.rujel.auth.PrefsDrivenUser");
 				Class lhClass = Class.forName(lhClassName);
 				Constructor lhConstuctor = lhClass.getConstructor();
 				loginHandler = (LoginHandler)lhConstuctor.newInstance();
