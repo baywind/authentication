@@ -32,6 +32,7 @@ package net.rujel.auth;
 //import net.rujel.reusables.*;
 //import net.rujel.core.*;
 import net.rujel.reusables.SettingsReader;
+import net.rujel.reusables.Various;
 
 import com.apress.practicalwo.practicalutilities.WORequestAdditions;
 import com.webobjects.foundation.*;
@@ -43,7 +44,6 @@ import java.util.Enumeration;
 public class LoginProcessor {
 	protected static Logger logger = Logger.getLogger("login");
 	
-//	protected static Preferences prefs = Preferences.systemNodeForPackage(LoginProcessor.class);
 	protected static final SettingsReader prefs = SettingsReader.settingsForPath("auth",true);
 	protected static LoginHandler loginHandler = LoginHandler.Generator.generate();
 	protected static BruteforceProtection bfp = new BruteforceProtection();
@@ -74,39 +74,27 @@ public class LoginProcessor {
 	}
 	
 	public static WOComponent enterLogin(WOContext ctx, String message) {
-		//prefs.refresh();
 		if(prefs.getBoolean("useHTTPS",true) && !WORequestAdditions.isSecure(ctx.request()))
-			return secureRedirect(null,ctx,true);
+			return secureRedirect(null,ctx,Boolean.TRUE);
 		
 		WOComponent nextPage = loginComponent(ctx, message);
-/*		String welcomeMessage = prefs.get("welcomeMessage",null);
-		if (message != null)
-			try {
-			nextPage.takeValueForKey(message,"message");
-			} catch (NSKeyValueCoding.UnknownKeyException e) {
-				
-			}*/
 		return nextPage;
 	}
 	
-	public static WORedirect secureRedirect(String action, WOContext ctx, boolean secure) {
+	public static WORedirect secureRedirect(String action, WOContext ctx, Boolean secure) {
 		WORequest req = ctx.request();
 		String host = null;
+		if(secure != null) {
 		String customUrlNode = "customURL." + ((secure)?"secure":"insecure");
 		SettingsReader urlsNode = prefs.subreaderForPath(customUrlNode,false);
 		
-		//if(prefs.nodeExists(customUrlNode)) {
 		if(urlsNode != null) {
-			//Preferences urlsNode = prefs.node(customUrlNode);
-			//String[] ips = urlsNode.keys();
 			Enumeration enu = urlsNode.keyEnumerator();
-			//if(ips != null && ips.length > 0) {
 			if(enu.hasMoreElements()) {
 				String sourceHost = WORequestAdditions.originatingIPAddress(req);
 				int len = 0;
 				if(sourceHost != null && sourceHost.length() >= 7) {
 					String curr;
-					//for (int i = 0; i < ips.length; i++) 
 ipSelection:
 					while (enu.hasMoreElements()) {
 						curr = (String)enu.nextElement();//ips[i];
@@ -134,7 +122,7 @@ ipSelection:
 			if(host != null)
 				host = ((secure)?"https://":"http://") + host;
 		}
-		
+		}
 		NSMutableDictionary formValues = req.formValues().mutableClone();
 		formValues.removeObjectsForKeys(new NSArray(loginHandler.args()));
 		formValues.removeObjectForKey(WOContext.SessionIDBindingKey);
@@ -150,54 +138,25 @@ ipSelection:
 		} else {
 			uri = ctx.directActionURLForActionNamed(action,formValues);
 		}
-		if(host!= null && uri.startsWith("http:")) {
-			int idx = uri.indexOf('/', 8);
-			uri = uri.substring(idx);
-		}
+		uri = Various.cleanURL(uri);
 		String url = (host==null)?uri:host +  uri;
 		WORedirect result = new WORedirect(ctx);
 		result.setUrl(url);
 		return result; 
-		
-		}
-	/*
-	 protected static CoreApplication appl() {
-		 return ((CoreApplication)WOApplication.application());
-	 } */
+	}
 	
 	public static UserPresentation processLogin(WORequest req) 
 						throws LoginHandler.AuthenticationFailedException {
-		String[] args = loginHandler.args();
-		Object[] values = new Object[args.length];
-		for (int i = 0; i < args.length; i++) {
-			/*			if(agrs[i].equals(LoginHandler.STREAM && req.isMultipartFormData()) {
-			values[i] = req.contentInputStream();
-			} else { */
-				values[i] = req.formValueForKey(args[i]);
-//			}
-		}
-/*
-		if(prefs.getBoolean("bruteforcingProtect",true)) {
-			String sourceHost = WORequestAdditions.originatingIPAddress(req);
-			Number counter = (Number)suspiciousHosts.objectForKey(sourceHost);
-			int hostCounter = (counter==null)?0:counter.intValue();
-			
-			String userId = values[0].toString();
-			counter = (Number)suspiciousUsers.objectForKey(userId);
-			int userCounter = (counter==null)?0:counter.intValue();
-			
-			int min = StrictMath.min(hostCounter,userCounter);
-			if(min < 0) {
-				Integer result = new Integer (min * 2);
-				suspiciousUsers.setObjectForKey(result,"");
-			}
-		}*/
 		String id = loginHandler.identityArg();
-		if(id != null && prefs.getBoolean("bruteforcingProtect",false)) {
+		if(id != null && prefs.getBoolean("bruteforcingProtect",true)) {
 			bfp.checkAttempt(WORequestAdditions.originatingIPAddress(req),
 					req.formValueForKey(id));
 		}
-		
+		String[] args = loginHandler.args();
+		Object[] values = new Object[args.length];
+		for (int i = 0; i < args.length; i++) {
+				values[i] = req.formValueForKey(args[i]);
+		}
 		return loginHandler.authenticate(values);
 	}
 	
@@ -238,8 +197,8 @@ ipSelection:
 		UserPresentation user = null;
 		//String username = req.stringFormValueForKey(loginHandler.identityArg());
 		try {
-			bfp.checkAttempt(WORequestAdditions.originatingIPAddress(req),
-					req.formValueForKey(loginHandler.identityArg()));
+//			bfp.checkAttempt(WORequestAdditions.originatingIPAddress(req),
+//					req.formValueForKey(loginHandler.identityArg()));
 			user = processLogin(req);
 			if (user == null && !prefs.getBoolean("allowNone",false)) {
 				message = prefs.get("denyNoneMessage","User should be specified");
@@ -296,7 +255,7 @@ ipSelection:
 					//nextPage = rdr;
 				} else {
 					actionName = prefs.get("refuseAction","refuse");
-					return secureRedirect(actionName,ctx,false);				
+					return secureRedirect(actionName,ctx,null);				
 				}
 			}
 		//}
@@ -334,11 +293,17 @@ ipSelection:
 			}
 			ses.setObjectForKey(queryDictionary.immutableClone(),"queryDictionary");
 		}
-		
-				
-		//String actionName = prefs.get("welcomeAction","default");
-		boolean retSecure = prefs.getBoolean("sessionSecure",false);
-		
+		return welcomeRedirect(ctx, welcomeAction);
+	}
+	
+	public static WORedirect welcomeRedirect(WOContext ctx, String welcomeAction) {
+		Boolean retSecure = null;
+		if(prefs.getBoolean("sessionSecure",false)) {
+			if(!WORequestAdditions.isSecure(ctx.request()))
+				retSecure = Boolean.TRUE;
+		} else if(prefs.getBoolean("useHTTPS",true)) {
+				retSecure = Boolean.FALSE;
+		}
 		return secureRedirect(welcomeAction,ctx,retSecure);
 	}
 
