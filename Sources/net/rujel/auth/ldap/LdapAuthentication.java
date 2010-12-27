@@ -88,9 +88,9 @@ public class LdapAuthentication implements LoginHandler {
 	
 	public static LdapUser authenticate(String user, String password)
 						throws AuthenticationFailedException {
-		if (password==null || password.length() == 0) return null;
-		if (user==null || user.length() == 0) throw new AuthenticationFailedException(
-						IDENTITY, "No username provided.");
+//		if (password==null || password.length() == 0) return null;
+		if (user==null || user.length() == 0) 
+			throw new AuthenticationFailedException(IDENTITY, "No username provided.");
 		String userDn = user;
 		if (user.indexOf('=') == -1) {
 			try {
