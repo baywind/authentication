@@ -37,6 +37,8 @@ import net.rujel.reusables.Various;
 import com.apress.practicalwo.practicalutilities.WORequestAdditions;
 import com.webobjects.foundation.*;
 import com.webobjects.appserver.*;
+
+import java.security.MessageDigest;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 import java.util.Enumeration;
@@ -310,25 +312,24 @@ ipSelection:
 	public static WOComponent loginAction (WOContext ctx) {
 		return loginAction(ctx,prefs.get("welcomeAction","default"));
 	}
-	
-	public static String bytesToString(byte[] bytes, StringBuilder buf) {
-		if(bytes == null) return null;
-		if(bytes.length == 0) return "";
-		if(buf == null)
-			buf = new StringBuilder(bytes.length * 2);
-		for (int i = 0; i < bytes.length; i++) {
-			int tmp = bytes[i] & 0xf0;
-			tmp >>>=4;
-			if(tmp < 10)
-				buf.append(tmp);
-			else
-				buf.append((char)('a' + tmp -10));
-			tmp = bytes[i] & 0x0f;
-			if(tmp < 10)
-				buf.append(tmp);
-			else
-				buf.append((char)('a' + tmp -10));
+
+	public static String getPasswordDigest(String password) {
+		if(password == null) return null;
+		String algorithm = SettingsReader.stringForKeyPath(
+				"auth.passwordDigestAlgorithm", "MD5");
+		if(algorithm == null || algorithm.length() == 0 || algorithm.equalsIgnoreCase("none"))
+			return password;
+		try {
+			MessageDigest md = MessageDigest.getInstance(algorithm);
+			byte[] digest = md.digest(password.getBytes());
+			StringBuilder buf = new StringBuilder(digest.length * 2);
+			for (int i = 0; i < digest.length; i++) {
+				buf.append(Character.forDigit((digest[i] & 0xf0) >>> 4, 16));
+				buf.append(Character.forDigit(digest[i] & 0xf,16));
 			}
-		return buf.toString();
+			return buf.toString();
+		} catch (Exception e) {
+			throw new IllegalStateException("Error digesting password", e);
+		}
 	}
 }
