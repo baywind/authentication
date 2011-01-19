@@ -92,29 +92,29 @@ public interface LoginHandler {
 		}
 		
 		public String getMessage() {
-			String why;
+			StringBuilder buf = new StringBuilder();
 			switch (reason) {
 			case ERROR:
-				why = " <ERROR> ";
+				buf.append(" <ERROR> ");
 				break;
 			case IDENTITY:
-				why = " <IDENTITY> ";
+				buf.append(" <IDENTITY> ");
 				break;
 			case CREDENTIAL:
-				why = " <CREDENTIAL> ";
+				buf.append(" <CREDENTIAL> ");
 				break;
 			case REFUSED:
-				why = " <REFUSED> ";
+				buf.append(" <REFUSED> ");
 				break;
 
 			default:
-				why = " <UNKNOWN> ";
+				buf.append(" <UNKNOWN> ");
 				break;
 			}
+			buf.append(super.getMessage());
 			if (getCause() != null)
-				return why + super.getMessage() + " (" + getCause().toString() + ")";
-			else
-				return super.getMessage();
+				buf.append(" (").append(getCause().toString()).append(')');
+			return buf.toString();
 		}
 	}
 	
