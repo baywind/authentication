@@ -162,17 +162,13 @@ public class LdapUser extends UserPresentation.DefaultImplementation {
 		return result.toString();
 	}
 	
-	public boolean isInGroup (Object group) {
+	public boolean isInGroup (String group,Integer section) {
 		Name check = null;
-		 if (group instanceof Name)
-			 check = (Name)group;
-		else {
-			try {
-				check = new LdapName(group.toString());
-			} catch (InvalidNameException ex) {
-				return false;
-				//throw new IllegalArgumentException("Group argument could not be parced", ex);
-			}
+		try {
+			check = new LdapName(group);
+		} catch (InvalidNameException ex) {
+			return false;
+			//throw new IllegalArgumentException("Group argument could not be parced", ex);
 		}
 		if(check.startsWith(LdapAuthentication.baseDN()))
 			check = check.getSuffix(LdapAuthentication.baseDN().size());
@@ -183,31 +179,21 @@ public class LdapUser extends UserPresentation.DefaultImplementation {
 		return false;
 	}
 	
-	public Object[] listGroups() {
-		/*
-		 if(myGroups == null || myGroups.length == 0) {
-			try {
-				myGroups = new Name[] {new LdapName (context.getNameInNamespace())};
-				
-				Attribute grps = context.getAttributes("",new String[] {ATTR}).get(ATTR);
-				javax.naming.NamingEnumeration groupNames = grps.getAll();
-				for (int i = 1; groupNames.hasMore(); i++) {
-					myGroups[i] = new LdapName ((String)groupNames.next());
-				}
-			} catch (javax.naming.NamingException ex) {
-				return null;
-			}
-		}*/
-		return myGroups.clone();
+	public String[] listGroups(Integer section) {
+		String[] result = new String[myGroups.length];
+		for (int i = 0; i < result.length; i++) {
+			result[i] = myGroups[i].toString();
+		}
+		return result;
 	}
 	
-	public Object[] filterMyGroups(Object[] groups) {
-		Vector result = new Vector(0,2);
+	public String[] filterMyGroups(String[] groups) {
+		Vector<String> result = new Vector<String>(0,2);
 		for (int i = 0; i < groups.length; i++) {
 			if(isInGroup(groups[i])) {
 				result.add(groups[i]);
 			}
 		}
-		return result.toArray();
+		return result.toArray(new String[result.size()]);
 	}
 }

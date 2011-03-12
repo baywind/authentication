@@ -163,6 +163,8 @@ public class BruteforceProtection {
 				super();
 				inDict = dict;
 				key = dictKey;
+				if(key == null)
+					key = "null";
 				count = timeout;
 				timer.schedule(this,(long)timeout*1000);
 				inDict.setObjectForKey(this,key);

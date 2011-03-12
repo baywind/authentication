@@ -118,7 +118,7 @@ public class ReadAccess implements NSKeyValueCodingAdditions {
 					}
 					PlistReader acc = defaults.subreaderForPath(nodeName, false);
 					if(acc != null)
-						level = PrefsAccessHandler.accessLevel(acc, modifier, user());
+						level = PrefsAccessHandler.accessLevel(acc, modifier, user(),null);
 				}
 				if(level < 0) {
 					Object [] args = new Object[] {ses,obj,

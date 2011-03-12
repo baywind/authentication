@@ -54,8 +54,13 @@ public class PrefsAccessHandler implements AccessHandler {
 	public boolean userIs(UserPresentation aUser) {
 		return (aUser == user);//aUser.equals(user);
 	}
-
-	public int accessLevel (Object obj) throws AccessHandler.UnlistedModuleException {
+	
+	public int accessLevel (Object obj)  throws AccessHandler.UnlistedModuleException {
+		return accessLevel(obj,null);
+	}
+	
+	public int accessLevel(Object obj, Integer section)
+					throws AccessHandler.UnlistedModuleException {
 		String nodeName = null;
 		if(obj instanceof com.webobjects.eocontrol.EOEnterpriseObject) {
 			nodeName = ((com.webobjects.eocontrol.EOEnterpriseObject)obj).entityName();
@@ -85,10 +90,11 @@ public class PrefsAccessHandler implements AccessHandler {
 		if(node == null)
 			throw new AccessHandler.UnlistedModuleException(
 					"Access to this module is not described");
-		return accessLevel(node, modifier, user);
+		return accessLevel(node, modifier, user,section);
 	}
 	
-	public static int accessLevel (SettingsReader node, String modifier,UserPresentation user) {
+	public static int accessLevel (SettingsReader node, String modifier,
+			UserPresentation user,Integer section) {
 		int result = 0;
 		int curr = 0;
 		java.util.Enumeration enu = null;
@@ -102,12 +108,12 @@ public class PrefsAccessHandler implements AccessHandler {
 					curr = mod.getInt(key,0);
 					if(curr == 0)
 						continue;
-					if(tryUnmapped && key.equals("*") || user.isInGroup(key)) {
+					if(tryUnmapped && key.equals("*") || user.isInGroup(key,section)) {
 						found = true;
 						result = result | curr;
 					} else {
 						key = mapping.get(key, key);
-						if(key.equals("*") || user.isInGroup(key)) {
+						if(key.equals("*") || user.isInGroup(key,section)) {
 							found = true;
 							result = result | curr;
 						}
@@ -127,11 +133,11 @@ public class PrefsAccessHandler implements AccessHandler {
 			curr = node.getInt(key,0);
 			if(curr == 0)
 				continue;
-			if(tryUnmapped && key.equals("*") || user.isInGroup(key)) {
+			if(tryUnmapped && key.equals("*") || user.isInGroup(key,section)) {
 				result = result | curr;
 			} else {
 				key = mapping.get(key, key);
-				if(key.equals("*") || user.isInGroup(key))
+				if(key.equals("*") || user.isInGroup(key,section))
 					result = result | curr;
 			}
 		}

@@ -118,11 +118,11 @@ public class PrefsDrivenUser extends UserPresentation.DefaultImplementation impl
 		return prefs.get(property,null);
 	}
 	
-	public boolean isInGroup (Object group) {
+	public boolean isInGroup (Object group,Integer section) {
 		return allGroups.contains(group.toString());
 	}
 	
-	public Object[] listGroups() {
+	public String[] listGroups(Integer section) {
 		return allGroups.split(";");
 	}
 	

@@ -40,11 +40,12 @@ public interface UserPresentation {
 	
 	public String present();
 	
-	public boolean isInGroup (Object group);
+	public boolean isInGroup (String group);
+	public boolean isInGroup (String group, Integer section);
 	
-	public Object[] listGroups();
+	public String[] listGroups(Integer section);
 	
-	public Object[] filterMyGroups(Object[] groups);
+	public String[] filterMyGroups(String[] groups,Integer section);
 	
 	public void setAccessHandler (AccessHandler ah);
 	
@@ -55,9 +56,12 @@ public interface UserPresentation {
 	/** This may be used as superclass when implementing UserPresentation */
 	public static abstract class DefaultImplementation implements UserPresentation {
 		
+		public boolean isInGroup (String group) {
+			return isInGroup(group, null);
+		}
 		/** Checks whether supplied group is in array returned from listGroups*/
-		public boolean isInGroup (Object group) {
-			Object[] groups = listGroups();
+		public boolean isInGroup (String group,Integer section) {
+			Object[] groups = listGroups(section);
 			for (int i = 0; i < groups.length; i++) {
 				if(group.equals(groups[i])) {
 					return true;
@@ -67,14 +71,14 @@ public interface UserPresentation {
 		}
 		
 		/** Invokes isInGroup in every group in the list */
-		public Object[] filterMyGroups(Object[] groups) {
-			Vector result = new Vector(0,2);
+		public String[] filterMyGroups(String[] groups,Integer section) {
+			Vector<String> result = new Vector<String>(0,2);
 			for (int i = 0; i < groups.length; i++) {
 				if(isInGroup(groups[i])) {
 					result.add(groups[i]);
 				}
 			}
-			return result.toArray();
+			return result.toArray(new String[result.size()]);
 		}
 		
 		protected AccessHandler accessHandler = null;
@@ -125,16 +129,19 @@ public interface UserPresentation {
 			return toString();
 		}
 		
-		public boolean isInGroup (Object group) {
+		public boolean isInGroup (String group,Integer section) {
+			return allow;
+		}
+		public boolean isInGroup (String group) {
 			return allow;
 		}
 		
-		public Object[] listGroups() {
-			if(allow) return new Object[0];
+		public String[] listGroups(Integer section) {
+			if(allow) return new String[0];
 			else return null;
 		}
 		
-		public Object[] filterMyGroups(Object[] groups) {
+		public String[] filterMyGroups(String[] groups,Integer section) {
 			if(allow) return groups.clone();
 			else return null;
 		}
@@ -159,7 +166,7 @@ public interface UserPresentation {
 			accessHandler = AccessHandler.Generator.generateForUser(this);
 		}
 
-		public Object[] listGroups() {
+		public String[] listGroups(Integer section) {
 			return null;
 		}
 		
@@ -167,7 +174,7 @@ public interface UserPresentation {
 			return "GUEST";
 		}
 		
-		public boolean isInGroup(Object grp) {
+		public boolean isInGroup(String grp,Integer section) {
 			return false;
 		}
 	}
