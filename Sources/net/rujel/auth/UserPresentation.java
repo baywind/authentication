@@ -61,6 +61,8 @@ public interface UserPresentation {
 		}
 		/** Checks whether supplied group is in array returned from listGroups*/
 		public boolean isInGroup (String group,Integer section) {
+			if(group.equals("*"))
+				return true;
 			Object[] groups = listGroups(section);
 			for (int i = 0; i < groups.length; i++) {
 				if(group.equals(groups[i])) {
@@ -130,10 +132,10 @@ public interface UserPresentation {
 		}
 		
 		public boolean isInGroup (String group,Integer section) {
-			return allow;
+			return allow || group.equals("*") || group.equals("any");
 		}
 		public boolean isInGroup (String group) {
-			return allow;
+			return isInGroup(group, null);
 		}
 		
 		public String[] listGroups(Integer section) {
@@ -175,7 +177,7 @@ public interface UserPresentation {
 		}
 		
 		public boolean isInGroup(String grp,Integer section) {
-			return false;
+			return grp.equals("*") || grp.equals("any");
 		}
 	}
 }
