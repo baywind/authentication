@@ -30,9 +30,13 @@
 package net.rujel.auth.ldap;
 
 import net.rujel.auth.*;
+import net.rujel.reusables.SettingsReader;
+
 import javax.naming.*;
 import javax.naming.directory.*;
 import javax.naming.ldap.LdapName;
+
+import java.util.Enumeration;
 import java.util.Vector;
 import java.util.logging.Level;
 import java.util.logging.Logger;
@@ -40,18 +44,38 @@ import java.util.logging.Logger;
 public class LdapUser extends UserPresentation.DefaultImplementation {
 	protected static Logger logger = Logger.getLogger("auth");
 	protected Name[] myGroups;
+	protected Vector<String> accGroups;
+	protected static SettingsReader mapping;
 	
 	protected DirContext dirContext;
 //	protected String userDn; 
 	
+	protected void init() {
+		if(mapping == null) {
+			mapping = SettingsReader.settingsForPath("auth.groupMapping",false);
+			if(mapping == null)
+				mapping = SettingsReader.DUMMY;
+		}
+		accGroups = new Vector(2,3);
+		Enumeration enu = mapping.keyEnumerator();
+		while (enu.hasMoreElements()) {
+			String acc = (String) enu.nextElement();
+			String grName = mapping.get(acc, null); 
+			if(grName != null && isInGroup(grName))
+				accGroups.add(acc);
+		}
+	}
+
 	public LdapUser (Name[] groups) {
 		myGroups = groups;
+		init();
 	}
 	
 	public LdapUser (DirContext context, String dn) {
 		dirContext = context;
 		//userDn = dn;
 		myGroups = getGroups(dn);
+		init();
 	}
 	
 	protected Name[] getGroups(String fullDn) {//throws NamingException{
@@ -163,6 +187,11 @@ public class LdapUser extends UserPresentation.DefaultImplementation {
 	}
 	
 	public boolean isInGroup (String group,Integer section) {
+		if(group.equals("*")) return true;
+		if(accGroups.contains(group))
+			return true;
+		group = mapping.get(group, group);
+		if(group.equals("*")) return true;
 		Name check = null;
 		try {
 			check = new LdapName(group);
@@ -180,17 +209,13 @@ public class LdapUser extends UserPresentation.DefaultImplementation {
 	}
 	
 	public String[] listGroups(Integer section) {
-		String[] result = new String[myGroups.length];
-		for (int i = 0; i < result.length; i++) {
-			result[i] = myGroups[i].toString();
-		}
-		return result;
+		return accGroups.toArray(new String[accGroups.size()]);
 	}
 	
-	public String[] filterMyGroups(String[] groups) {
+	public String[] filterMyGroups(String[] groups, Integer section) {
 		Vector<String> result = new Vector<String>(0,2);
 		for (int i = 0; i < groups.length; i++) {
-			if(isInGroup(groups[i])) {
+			if(isInGroup(groups[i],section)) {
 				result.add(groups[i]);
 			}
 		}
