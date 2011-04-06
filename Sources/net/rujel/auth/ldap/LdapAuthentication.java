@@ -116,8 +116,12 @@ public class LdapAuthentication implements LoginHandler {
 	public static LdapUser authenticateWithDn (String userDn, String password)
 												throws AuthenticationFailedException {
 		// Set up environment for creating initial context
-		if (password == null)
-			password = "";
+		if (password == null || password.length() <= 0) {
+			AuthenticationFailedException e = new AuthenticationFailedException (
+					CREDENTIAL,"Could not authenticate without password");
+			e.setUserId(userDn);
+			throw e;
+		}
 		Hashtable env = initEnvironment();
 		
 		env.put(Context.SECURITY_AUTHENTICATION, prefs.get("authentication","simple"));
