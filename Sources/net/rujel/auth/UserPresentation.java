@@ -49,7 +49,7 @@ public interface UserPresentation {
 	
 	public void setAccessHandler (AccessHandler ah);
 	
-	public int accessLevel(Object obj) throws AccessHandler.UnlistedModuleException;
+	public int accessLevel(Object obj, Integer section) throws AccessHandler.UnlistedModuleException;
 	
 	public Object propertyNamed(String property);
 	
@@ -91,8 +91,9 @@ public interface UserPresentation {
 		}
 		
 		/** Invokes accessLevel on attached accessHandler*/
-		public int accessLevel(Object obj)  throws AccessHandler.UnlistedModuleException {
-			return accessHandler.accessLevel(obj);
+		public int accessLevel(Object obj, Integer section) 
+							throws AccessHandler.UnlistedModuleException {
+			return accessHandler.accessLevel(obj, section);
 		}
 		
 		/** Returns toString*/
@@ -152,7 +153,8 @@ public interface UserPresentation {
 			;
 		}
 		
-		public int accessLevel(Object obj) throws AccessHandler.UnlistedModuleException {
+		public int accessLevel(Object obj, Integer section)
+									throws AccessHandler.UnlistedModuleException {
 			return (allow)?-1:0;
 		}
 		
@@ -165,7 +167,7 @@ public interface UserPresentation {
 		
 		public Guest() {
 			super();
-			accessHandler = AccessHandler.Generator.generateForUser(this);
+			accessHandler = AccessHandler.generateForUser(this);
 		}
 
 		public String[] listGroups(Integer section) {

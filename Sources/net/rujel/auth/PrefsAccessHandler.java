@@ -31,20 +31,11 @@ package net.rujel.auth;
 
 import net.rujel.reusables.SettingsReader;
 
-public class PrefsAccessHandler implements AccessHandler {
+public class PrefsAccessHandler extends AccessHandler {
 	protected final SettingsReader prefs = SettingsReader.settingsForPath("auth.access",true);
-	protected UserPresentation user = null;
 	
 	public PrefsAccessHandler() {
 		super();
-	}
-	
-	public void setUser (UserPresentation aUser) {
-		user = aUser;
-	}
-	
-	public boolean userIs(UserPresentation aUser) {
-		return (aUser == user);//aUser.equals(user);
 	}
 	
 	public int accessLevel (Object obj)  throws AccessHandler.UnlistedModuleException {
@@ -53,21 +44,8 @@ public class PrefsAccessHandler implements AccessHandler {
 	
 	public int accessLevel(Object obj, Integer section)
 					throws AccessHandler.UnlistedModuleException {
-		String nodeName = null;
-		if(obj instanceof com.webobjects.eocontrol.EOEnterpriseObject) {
-			nodeName = ((com.webobjects.eocontrol.EOEnterpriseObject)obj).entityName();
-		} else if(obj instanceof com.webobjects.appserver.WOComponent) {
-			String name = ((com.webobjects.appserver.WOComponent)obj).name();
-			int idx = name.lastIndexOf('.');
-			nodeName = (idx <0)?name:name.substring(idx +1);
-		} else if (obj instanceof String) {
-			nodeName = (String)obj;
-		} else if(obj != null) {
-			nodeName = obj.toString();
-			if(nodeName.length() == 0)
-				nodeName = null;
-		}
-		if(nodeName == null)
+		String nodeName = interpret(obj);
+		if(nodeName == null || nodeName.length() <= 0)
 			throw new IllegalArgumentException ("Non empty String required"); 
 		if(user == null) {
 			return 0;
@@ -133,10 +111,6 @@ public class PrefsAccessHandler implements AccessHandler {
 			else
 				return false;
 		}
-		try {
-			return (accessLevel("login") > 0);
-		} catch (AccessHandler.UnlistedModuleException e) {
-			return true;
-		}
+		return super.canLogin();
 	}
 }

@@ -30,23 +30,49 @@
 package net.rujel.auth;
 import java.lang.reflect.*;
 
-public interface AccessHandler {
+public abstract class AccessHandler {
 	public static final String  CLASSNAME= "accessHandlerClass";
 //	public static final String ownNotificationName = "Own created object";
 	
 //	public AccessHandler(UserPresentation aUser);
+	protected UserPresentation user = null;
 	
-	public void setUser (UserPresentation aUser);
+	public void setUser (UserPresentation aUser) {
+		user = aUser;
+	}
 	
-	public boolean userIs(UserPresentation aUser);
+	public boolean userIs(UserPresentation aUser) {
+		return (aUser == user);//aUser.equals(user);
+	}
 	
-	public int accessLevel (Object obj) throws UnlistedModuleException;
+	public abstract int accessLevel (Object obj) throws UnlistedModuleException;
+	public abstract int accessLevel(Object obj, Integer section) throws UnlistedModuleException;
 	
-	public boolean canLogin();
+	public boolean canLogin() {
+		try {
+			return (accessLevel("login") > 0);
+		} catch (AccessHandler.UnlistedModuleException e) {
+			return true;
+		}
+	}
 	
-	public static class Generator {
+	public static String interpret(Object obj) {
+		if(obj instanceof com.webobjects.eocontrol.EOEnterpriseObject) {
+			return ((com.webobjects.eocontrol.EOEnterpriseObject)obj).entityName();
+		} else if(obj instanceof com.webobjects.appserver.WOComponent) {
+			String name = ((com.webobjects.appserver.WOComponent)obj).name();
+			int idx = name.lastIndexOf('.');
+			return (idx <0)?name:name.substring(idx +1);
+		} else if (obj instanceof String) {
+			return (String)obj;
+		} else if(obj != null) {
+			return obj.toString();
+		}
+		return null;
+	}
+	
 		
-		protected static AccessHandler generateForUser(UserPresentation user) {
+		public static AccessHandler generateForUser(UserPresentation user) {
 			AccessHandler ah = null;
 			try {
 				String ahClassName = net.rujel.reusables.SettingsReader.stringForKeyPath("auth." + CLASSNAME,"net.rujel.auth.PrefsAccessHandler");
@@ -60,7 +86,6 @@ public interface AccessHandler {
 			ah.setUser(user);
 			return ah;
 		}
-	}
 	
 	public static class UnlistedModuleException extends Exception {
 		public UnlistedModuleException(String message) {

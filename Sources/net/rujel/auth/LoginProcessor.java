@@ -231,7 +231,7 @@ ipSelection:
 			bfp.success(WORequestAdditions.originatingIPAddress(req),user.toString());
 			//WOApplication appl = WOApplication.application();
 			//initialise session here
-			AccessHandler ah = AccessHandler.Generator.generateForUser(user);//accessHandler(user);
+			AccessHandler ah = AccessHandler.generateForUser(user);//accessHandler(user);
 			String actionName;
 			//boolean retSecure = false;
 			if (ah.canLogin()) {
