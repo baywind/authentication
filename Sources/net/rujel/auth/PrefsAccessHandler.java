@@ -68,10 +68,10 @@ public class PrefsAccessHandler extends AccessHandler {
 		int result = 0;
 		int curr = 0;
 		java.util.Enumeration enu = null;
+		java.util.HashSet modified = new java.util.HashSet();;
 		if(modifier != null) {
 			SettingsReader mod = node.subreaderForPath("modifiers." + modifier, false);
 			if(mod != null) {
-				boolean found = false;
 				enu = mod.keyEnumerator();
 				while (enu.hasMoreElements()) {
 					String key = (String)enu.nextElement();
@@ -79,12 +79,10 @@ public class PrefsAccessHandler extends AccessHandler {
 					if(curr == 0)
 						continue;
 					if(key.equals("*") || user.isInGroup(key,section)) {
-						found = true;
+						modified.add(key);
 						result = result | curr;
 					}
 				}
-				if(found)
-					return result;
 			} else {
 				System.err.println("Undescribed modifier: " + modifier);
 			}
@@ -92,7 +90,7 @@ public class PrefsAccessHandler extends AccessHandler {
 		enu = node.keyEnumerator();
 		while (enu.hasMoreElements()) {
 			String key = (String)enu.nextElement();
-			if(key.equals("modifiers"))
+			if(key.equals("modifiers") || modified.contains(key))
 				continue;
 			curr = node.getInt(key,0);
 			if(curr == 0)
