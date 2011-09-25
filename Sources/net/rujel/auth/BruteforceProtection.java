@@ -40,7 +40,8 @@ public class BruteforceProtection {
 	protected static Logger logger = Logger.getLogger("auth");
 	protected Timer timer = new Timer(true);
 	
-	protected boolean bruteforcingProtect = net.rujel.reusables.SettingsReader.boolForKeyPath("auth.bruteforcingProtect",true);
+	protected boolean bruteforcingProtect = net.rujel.reusables.SettingsReader.boolForKeyPath(
+			"auth.bruteforcingProtect",true);
 	
 	protected NSMutableDictionary suspiciousUsers = new NSMutableDictionary();
 	protected NSMutableDictionary suspiciousHosts = new NSMutableDictionary();
@@ -107,9 +108,11 @@ public class BruteforceProtection {
 					int result = ((TimeoutTask)counter).getCount();
 					if(result > 10) {
 						((TimeoutTask)counter).recycle();
-						counter = new TimeoutTask(suspiciousHosts,host,result*2);
+						result = (result < Integer.MAX_VALUE /2) ? result*2 : Integer.MAX_VALUE;
+						counter = new TimeoutTask(suspiciousHosts,host,result);
 						logger.log(Level.WARNING,"Bruteforcing attempt from user. host: ",uid);
-						throw new LoginHandler.AuthenticationFailedException(LoginHandler.REFUSED,"Too many login attempts for user");
+						throw new LoginHandler.AuthenticationFailedException(
+								LoginHandler.REFUSED,"Too many login attempts for user");
 					}
 				}
 			}
@@ -147,7 +150,8 @@ public class BruteforceProtection {
 			if(hm != null || um != null) {
 				if(!(hm == null || (hm instanceof Number && ((Number)hm).intValue() <= 3)) ||
 				   !(um == null || (um instanceof Number && ((Number)um).intValue() <= 3)))
-				logger.logp(Level.INFO,"BruteforceProtection","success","Login succeded after several attempts- user: " + um +"; host: " + hm);
+				logger.logp(Level.INFO,"BruteforceProtection","success",
+						"Login succeded after several attempts- user: " + um +"; host: " + hm);
 				resetCounter(suspiciousUsers,user);
 				resetCounter(suspiciousHosts,host);
 			}
@@ -176,7 +180,8 @@ public class BruteforceProtection {
 			}
 			
 			public TimeoutTask recycle() {
-				TimeoutTask newTask = new TimeoutTask(inDict,key,count*2);
+				int nextCount = (count < Integer.MAX_VALUE / 2)? count*2 : Integer.MAX_VALUE;
+				TimeoutTask newTask = new TimeoutTask(inDict,key,nextCount);
 				//timer.shedule(newTask,count*2000);
 				//inDict.setObjectForKey(newTask,key);
 				cancel();

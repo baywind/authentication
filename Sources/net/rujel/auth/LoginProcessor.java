@@ -209,10 +209,11 @@ ipSelection:
 			}
 		} catch (LoginHandler.AuthenticationFailedException ex) {
 			message = treatAuthenticationException(ex);
+			NSDictionary identity = Various.clientIdentity(req);
 			if(ex.getReason() == LoginHandler.ERROR)
-				logger.log(Level.WARNING,message,ex);
+				logger.log(Level.WARNING,message,new Object[] {ex,identity});
 			else
-				logger.log(Level.FINE,message,ex.getUserId());
+				logger.log(Level.FINE,message,new Object[] {identity,ex.getUserId()});
 			Integer timeout = bfp.badAttempt(WORequestAdditions.originatingIPAddress(req),ex);
 			WOComponent nextPage = loginComponent(ctx,message);
 			try {
