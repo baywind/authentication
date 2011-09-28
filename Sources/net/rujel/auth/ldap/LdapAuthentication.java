@@ -77,6 +77,7 @@ public class LdapAuthentication implements LoginHandler {
 		String password;
 		try {
 			user = (String) args[0];
+			user = user.trim();
 			password = (String) args[1];
 		} catch (Exception exc) {
 			throw new IllegalArgumentException(

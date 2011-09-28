@@ -66,13 +66,14 @@ public class PrefsDrivenUser extends UserPresentation.DefaultImplementation impl
 		String password;
 		try {
 			user = (String) args[0];
+			user = user.trim();
 			password = (String) args[1];
 		} catch (Exception exc) {
 			throw new IllegalArgumentException("Only two String argumens supported: username and password.",exc);
 		}
 		//DirContext ctx = authenticate(user, password);
 		return authenticate(user, password);//delegate.getIntegerPresentation(ctx);
-	} 
+	}
 	
 	public PrefsDrivenUser authenticate(String username, String pass) throws AuthenticationFailedException {
 //	public UserPresentation processLogin(WORequest req) throws AuthenticationFailedException, IllegalArgumentException {
