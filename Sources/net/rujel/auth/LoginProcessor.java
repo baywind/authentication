@@ -151,8 +151,7 @@ ipSelection:
 						throws LoginHandler.AuthenticationFailedException {
 		String id = loginHandler.identityArg();
 		if(id != null && prefs.getBoolean("bruteforcingProtect",true)) {
-			bfp.checkAttempt(WORequestAdditions.originatingIPAddress(req),
-					req.formValueForKey(id));
+			bfp.checkAttempt(req,req.formValueForKey(id));
 		}
 		String[] args = loginHandler.args();
 		Object[] values = new Object[args.length];
@@ -214,7 +213,7 @@ ipSelection:
 				logger.log(Level.WARNING,message,new Object[] {ex,identity});
 			else
 				logger.log(Level.FINE,message,new Object[] {identity,ex.getUserId()});
-			Integer timeout = bfp.badAttempt(WORequestAdditions.originatingIPAddress(req),ex);
+			Integer timeout = bfp.badAttempt(req,ex);
 			WOComponent nextPage = loginComponent(ctx,message);
 			try {
 				nextPage.takeValueForKey(timeout,"timeout");
@@ -229,7 +228,7 @@ ipSelection:
 			nextPage = loginComponent(ctx,message);
 			//nextPage.takeValueForKey(message,"message");
 		} else {*/
-			bfp.success(WORequestAdditions.originatingIPAddress(req),user.toString());
+			bfp.success(req,user.toString());
 			//WOApplication appl = WOApplication.application();
 			//initialise session here
 			AccessHandler ah = AccessHandler.generateForUser(user);//accessHandler(user);

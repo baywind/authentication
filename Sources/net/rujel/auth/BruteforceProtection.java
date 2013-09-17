@@ -29,6 +29,7 @@
 
 package net.rujel.auth;
 
+import com.webobjects.appserver.WORequest;
 import com.webobjects.foundation.NSMutableDictionary;
 import java.util.Timer;
 import java.util.logging.Logger;
@@ -42,6 +43,7 @@ public class BruteforceProtection {
 	
 	protected boolean bruteforcingProtect = net.rujel.reusables.SettingsReader.boolForKeyPath(
 			"auth.bruteforcingProtect",true);
+	protected String[] trustedProxies;
 	
 	protected NSMutableDictionary suspiciousUsers = new NSMutableDictionary();
 	protected NSMutableDictionary suspiciousHosts = new NSMutableDictionary();
@@ -70,8 +72,7 @@ public class BruteforceProtection {
 		Object counter = dict.objectForKey(key);
 		int result;
 		if(counter instanceof TimeoutTask) {
-			result = -2*((TimeoutTask)counter).getCount();
-			((TimeoutTask)counter).recycle();
+			result = -((TimeoutTask)counter).recycle().getCount();
 		} else {
 			result = (counter==null)?1:((Integer)counter).intValue() + 1;
 			TimeoutTask task = new TimeoutTask(dict,key,result);
@@ -90,62 +91,120 @@ public class BruteforceProtection {
 			}
 		}
 	}
+	
+	public String hostID(WORequest req) {
+		String hostIP = com.apress.practicalwo.practicalutilities.
+										WORequestAdditions.originatingIPAddress(req);
+		String forwarded = req.headerForKey("x-forwarded-for");
+		if(forwarded == null)
+			return hostIP;
+		if(trustedProxies == null) {
+			String list = net.rujel.reusables.SettingsReader.stringForKeyPath(
+					"auth.trustedProxies", null);
+			if(list == null) {
+				trustedProxies = new String[0];
+			} else {
+				trustedProxies = list.split("\\s*[,;|]?\\s*");
+			}
+		}
+		for (int i = 0; i < trustedProxies.length; i++) {
+			if(hostIP.equals(trustedProxies[i])) {
+				return forwarded + '@' + hostIP;
+			}
+		}
+		return hostIP;		
+	}
 
 	//public void checkHost(String host) throws LoginHandler.AuthenticationFailedException {
+	public void checkAttempt(WORequest req,Object uid)
+				throws LoginHandler.AuthenticationFailedException {
+		checkAttempt(hostID(req), uid);
+	}
+	
 	public void checkAttempt(String host,Object uid) 
 				throws LoginHandler.AuthenticationFailedException {
 		if(bruteforcingProtect) {
-			Object counter = suspiciousHosts.objectForKey(host);
-			if(counter instanceof TimeoutTask) {
-				((TimeoutTask)counter).recycle();
-				logger.warning("Bruteforcing attempt from host: " + host +
-						" user: " + uid);
-				throw new LoginHandler.AuthenticationFailedException(LoginHandler.REFUSED);
-			}
 			if(uid != null) {
-				counter = suspiciousUsers.objectForKey(uid);
+				Object counter = suspiciousUsers.objectForKey(uid);
 				if(counter instanceof TimeoutTask) {
-					int result = ((TimeoutTask)counter).getCount();
-					if(result > 10) {
-						((TimeoutTask)counter).recycle();
-						result = (result < Integer.MAX_VALUE /2) ? result*2 : Integer.MAX_VALUE;
-						counter = new TimeoutTask(suspiciousHosts,host,result);
-						logger.log(Level.WARNING,"Bruteforcing attempt from user. host: ",uid);
-						throw new LoginHandler.AuthenticationFailedException(
+					raiseBoth(host, uid.toString());
+					logger.log(Level.WARNING,"Bruteforcing attempt from user: " + uid +
+							" host: " + host);
+					LoginHandler.AuthenticationFailedException ex =
+						new LoginHandler.AuthenticationFailedException(
 								LoginHandler.REFUSED,"Too many login attempts for user");
-					}
+					ex.setUserId(uid.toString());
+					throw ex;
+				}
+			} else {
+				Object counter = suspiciousHosts.objectForKey(host);
+				if(counter instanceof TimeoutTask) {
+					((TimeoutTask)counter).recycle();
+					logger.warning("Bruteforcing attempt from host: " + host);
+					throw new LoginHandler.AuthenticationFailedException(LoginHandler.REFUSED);
 				}
 			}
 		}
 	}
 	
+	public Integer badAttempt(WORequest req,LoginHandler.AuthenticationFailedException aex) {
+		return badAttempt(hostID(req), aex);
+	}
+	
 	public Integer badAttempt(String host,LoginHandler.AuthenticationFailedException aex) {
-		Integer result = new Integer(0);
+		int result = 0;
 		if(bruteforcingProtect) {
 			if(aex.getReason() == LoginHandler.IDENTITY) {
 				int count = raiseCounter(suspiciousHosts,host);
-				result = new Integer(StrictMath.abs(count));
+				result = StrictMath.abs(count);
 			}
 			if(aex.getReason() == LoginHandler.CREDENTIAL) {
-				int byHost = raiseCounter(suspiciousHosts,host);
 				String user = aex.getUserId();
-				int byUser = raiseCounter(suspiciousUsers,user);
-				if (byUser < 0 && host != null && StrictMath.abs(byHost) < StrictMath.abs(byUser)) {
-					resetCounter(suspiciousHosts,host);
-					new TimeoutTask(suspiciousHosts,host,-byUser);
-				}
-				result = new Integer(StrictMath.max(StrictMath.abs(byHost),StrictMath.abs(byUser)));
+				result = raiseBoth(host, user);
 			}
 			if(aex.getReason() == LoginHandler.REFUSED) {
-				result = new Integer(StrictMath.abs(hostCounter(host)));
+				if(host != null)
+					result = new Integer(StrictMath.abs(hostCounter(host)));
+				else
+					result = new Integer(StrictMath.abs(userCounter(aex.getUserId())));
+			}
+		}
+		return new Integer(result);
+	}
+
+
+	public int raiseBoth(String host, String user) {
+		int byHost = StrictMath.abs(raiseCounter(suspiciousHosts,host));
+		int byUser = StrictMath.abs(raiseCounter(suspiciousUsers,user));
+		int result = StrictMath.max(byHost,byUser);
+		if(host != null) {
+			if(byUser < result) {
+				resetCounter(suspiciousUsers,user);
+				new TimeoutTask(suspiciousUsers,user,result);
+			} else if(byHost < result) {
+				resetCounter(suspiciousHosts,host);
+				new TimeoutTask(suspiciousHosts,host,result);
 			}
 		}
 		return result;
 	}
 	
+	public void success (WORequest req, String user) {
+		success(hostID(req), user);
+	}
+	
 	public void success (String host, String user) {
 		if(bruteforcingProtect) {
 			Object hm = suspiciousHosts.objectForKey(host);
+			if(hm instanceof Integer) {
+				resetCounter(suspiciousHosts,host);
+			} else if (hm instanceof TimeoutTask) {
+				logger.log(Level.INFO,"Login succeded on first attempt for user \"" + user +
+						"\" while the host " + host + "was still on quaranteen for " +
+						((TimeoutTask)hm).getCount());
+				resetCounter(suspiciousUsers,user);
+				return;
+			}
 			Object um = suspiciousUsers.objectForKey(user);
 			if(hm != null || um != null) {
 				if(!(hm == null || (hm instanceof Number && ((Number)hm).intValue() <= 3)) ||
@@ -153,7 +212,6 @@ public class BruteforceProtection {
 				logger.logp(Level.INFO,"BruteforceProtection","success",
 						"Login succeded after several attempts- user: " + um +"; host: " + hm);
 				resetCounter(suspiciousUsers,user);
-				resetCounter(suspiciousHosts,host);
 			}
 		}
 	}
