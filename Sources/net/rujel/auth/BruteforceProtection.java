@@ -96,20 +96,23 @@ public class BruteforceProtection {
 		String hostIP = com.apress.practicalwo.practicalutilities.
 										WORequestAdditions.originatingIPAddress(req);
 		String forwarded = req.headerForKey("x-forwarded-for");
-		if(forwarded == null)
-			return hostIP;
+		if(hostIP == null)
+			return null;
+		String test = (forwarded == null)?hostIP:forwarded + '@' + hostIP;
 		if(trustedProxies == null) {
 			String list = net.rujel.reusables.SettingsReader.stringForKeyPath(
 					"auth.trustedProxies", null);
 			if(list == null) {
 				trustedProxies = new String[0];
 			} else {
-				trustedProxies = list.split("\\s*[,;|]?\\s*");
+				trustedProxies = list.split("\\s*[,;| ]\\s*");
 			}
 		}
 		for (int i = 0; i < trustedProxies.length; i++) {
+			if(test.equals(trustedProxies[i]))
+				return null;
 			if(hostIP.equals(trustedProxies[i])) {
-				return forwarded + '@' + hostIP;
+				hostIP = test;
 			}
 		}
 		return hostIP;		
@@ -200,7 +203,7 @@ public class BruteforceProtection {
 				resetCounter(suspiciousHosts,host);
 			} else if (hm instanceof TimeoutTask) {
 				logger.log(Level.INFO,"Login succeded on first attempt for user \"" + user +
-						"\" while the host " + host + "was still on quaranteen for " +
+						"\" while the host " + host + " was still on quaranteen for " +
 						((TimeoutTask)hm).getCount());
 				resetCounter(suspiciousUsers,user);
 				return;
