@@ -140,6 +140,7 @@ public class BruteforceProtection {
 					throw ex;
 				}
 			} else {
+				if(host == null) return;
 				Object counter = suspiciousHosts.objectForKey(host);
 				if(counter instanceof TimeoutTask) {
 					((TimeoutTask)counter).recycle();
@@ -198,7 +199,7 @@ public class BruteforceProtection {
 	
 	public void success (String host, String user) {
 		if(bruteforcingProtect) {
-			Object hm = suspiciousHosts.objectForKey(host);
+			Object hm = (host==null)?null:suspiciousHosts.objectForKey(host);
 			if(hm instanceof Integer) {
 				resetCounter(suspiciousHosts,host);
 			} else if (hm instanceof TimeoutTask) {
