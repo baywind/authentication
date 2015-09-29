@@ -33,6 +33,7 @@ import net.rujel.reusables.SettingsReader;
 
 public class PrefsAccessHandler extends AccessHandler {
 	protected final SettingsReader prefs = SettingsReader.settingsForPath("auth.access",true);
+	public static SettingsReader _defaultSettings;
 	
 	public PrefsAccessHandler() {
 		super();
@@ -57,6 +58,29 @@ public class PrefsAccessHandler extends AccessHandler {
 			nodeName = nodeName.substring(0,idx);
 		}
 		SettingsReader node = prefs.subreaderForPath(nodeName, false);
+		if(node == null)
+			throw new AccessHandler.UnlistedModuleException(
+					"Access to this module is not described");
+		return accessLevel(node, modifier, user,section);
+	}
+	
+	public static int defaultLevel(UserPresentation user, Object obj, Integer section)
+											throws AccessHandler.UnlistedModuleException{
+		if(_defaultSettings == null)
+			throw new IllegalStateException("Access defaults not initialized");
+		String nodeName = interpret(obj);
+		if(nodeName == null || nodeName.length() <= 0)
+			throw new IllegalArgumentException ("Non empty String required"); 
+		if(user == null) {
+			return 0;
+		}
+		String modifier = null;
+		int idx = nodeName.indexOf('@');
+		if(idx > 0) {
+			modifier = nodeName.substring(idx + 1);
+			nodeName = nodeName.substring(0,idx);
+		}
+		SettingsReader node = _defaultSettings.subreaderForPath(nodeName, false);
 		if(node == null)
 			throw new AccessHandler.UnlistedModuleException(
 					"Access to this module is not described");
@@ -109,6 +133,14 @@ public class PrefsAccessHandler extends AccessHandler {
 			else
 				return false;
 		}
-		return super.canLogin();
+		try {
+			return (accessLevel("login") > 0);
+		} catch (AccessHandler.UnlistedModuleException e) {
+			try {
+				return (defaultLevel(user,"login",null) > 0);
+			} catch (AccessHandler.UnlistedModuleException e1) {
+				return true;
+			}
+		}
 	}
 }

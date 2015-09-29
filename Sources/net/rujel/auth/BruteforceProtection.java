@@ -82,13 +82,9 @@ public class BruteforceProtection {
 	}
 	
 	public void resetCounter(NSMutableDictionary dict,String key) {
-		Object counter = dict.objectForKey(key);
-		if(counter != null) {
-			if(counter instanceof TimeoutTask) {
-				((TimeoutTask)counter).cancel();
-			} else {
-				dict.removeObjectForKey(key);
-			}
+		Object counter = dict.removeObjectForKey(key);
+		if(counter instanceof TimeoutTask) {
+			((TimeoutTask)counter).cancel();
 		}
 	}
 	
