@@ -21,13 +21,13 @@
 		<condition property="wo.properties.check.failed">
 			<not>
 				<and>
-					<isset property="wo.wosystemroot"/>
-					<isset property="wo.wolocalroot"/>
+					<isset property="wo.system.frameworks" />
+					<isset property="wo.local.frameworks" />
 				</and>
 			</not>
 		</condition>
 		<fail if="wo.properties.check.failed" message="Could not find ${user.home}${file.separator}Library${file.separator}wobuild.properties."/>
-		<property name="install.dir" value="${wo.wolocalroot}/Library/Frameworks"/>
+		<property name="install.dir" value="${wo.local.frameworks}"/>
 	</target>
 
 	<!-- basic initializations  -->

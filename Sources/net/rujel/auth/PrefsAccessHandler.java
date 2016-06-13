@@ -107,8 +107,8 @@ public class PrefsAccessHandler extends AccessHandler {
 						result = result | curr;
 					}
 				}
-			} else {
-				System.err.println("Undescribed modifier: " + modifier);
+//			} else {
+//				System.err.println("Undescribed modifier: " + modifier);
 			}
 		}
 		enu = node.keyEnumerator();
