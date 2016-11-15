@@ -220,6 +220,7 @@ public class BruteforceProtection {
 			private NSMutableDictionary inDict;
 			private String key;
 			private int count;
+			private int max_time;
 			
 			public TimeoutTask(NSMutableDictionary dict, String dictKey, int timeout) {
 				super();
@@ -230,6 +231,8 @@ public class BruteforceProtection {
 				count = timeout;
 				timer.schedule(this,(long)timeout*1000);
 				inDict.setObjectForKey(this,key);
+				max_time = net.rujel.reusables.SettingsReader.
+						intForKeyPath("auth.bruteforcingProtectMaxTime", 60*5);
 			}
 			
 			public void run() {
@@ -238,7 +241,7 @@ public class BruteforceProtection {
 			}
 			
 			public TimeoutTask recycle() {
-				int nextCount = (count < Integer.MAX_VALUE / 2)? count*2 : Integer.MAX_VALUE;
+				int nextCount = (count < max_time / 2)? count*2 : max_time;
 				TimeoutTask newTask = new TimeoutTask(inDict,key,nextCount);
 				//timer.shedule(newTask,count*2000);
 				//inDict.setObjectForKey(newTask,key);
