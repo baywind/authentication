@@ -38,6 +38,8 @@ import com.apress.practicalwo.practicalutilities.WORequestAdditions;
 import com.webobjects.foundation.*;
 import com.webobjects.appserver.*;
 
+import java.lang.reflect.Constructor;
+import java.lang.reflect.InvocationTargetException;
 import java.security.MessageDigest;
 import java.util.logging.Logger;
 import java.util.logging.Level;
@@ -48,10 +50,57 @@ public class LoginProcessor {
 	
 	protected static final SettingsReader prefs = SettingsReader.settingsForPath("auth",true);
 	protected static LoginHandler loginHandler = LoginHandler.Generator.generate();
-	protected static BruteforceProtection bfp = new BruteforceProtection();
+	
+	protected static BruteforceProtection bfp = LoginProcessor.initBruteForceProtection();		
+	
 	static {
 		logger.config("LoginHandler: " + loginHandler.getClass().getName());
 	}
+	
+	public static BruteforceProtection initBruteForceProtection() {
+		BruteforceProtection protection = null;
+		Class<?> bruteforcingProtectClass = null;
+		try {
+			String bruteforcingProtectClassName = net.rujel.reusables.SettingsReader.
+					stringForKeyPath("auth.bruteforcingProtectClass",
+							"net.rujel.auth.ClassicBruteforceProtection");
+			bruteforcingProtectClass = Class.forName(bruteforcingProtectClassName);
+		} catch (ClassNotFoundException e) {
+			logger.log(Level.WARNING,"ClassNotFoundException trying to create Bruteforce Protection instance");
+		} catch (SecurityException e) {
+			logger.log(Level.WARNING,"SecurityException trying to create Bruteforce Protection instance");
+		}
+		if (bruteforcingProtectClass != null) {
+			try {
+				Constructor<?> bruteforcingProtectClassConstructor = 
+						bruteforcingProtectClass.getConstructor(String.class);
+				protection = (BruteforceProtection)bruteforcingProtectClassConstructor.newInstance(new Object[] {});
+			} catch (NoSuchMethodException e) {
+				if (bruteforcingProtectClass != null) {
+					try {
+						protection = (BruteforceProtection)bruteforcingProtectClass.newInstance();
+					} catch (InstantiationException e1) {
+						logger.log(Level.WARNING,"InstantiationException trying to create Bruteforce Protection instance");
+					} catch (IllegalAccessException e1) {
+						logger.log(Level.WARNING,"IllegalAccessException trying to create Bruteforce Protection instance");
+					}
+				}
+			} catch (IllegalArgumentException e) {
+				logger.log(Level.WARNING,"IllegalArgumentException trying to create Bruteforce Protection instance");
+			} catch (InstantiationException e) {
+				logger.log(Level.WARNING,"InstantiationException trying to create Bruteforce Protection instance");
+			} catch (IllegalAccessException e) {
+				logger.log(Level.WARNING,"IllegalAccessException trying to create Bruteforce Protection instance");
+			} catch (InvocationTargetException e) {
+				logger.log(Level.WARNING,"InvocationTargetException trying to create Bruteforce Protection instance");
+			}
+		}
+		if (protection == null) {
+			logger.log(Level.WARNING,"Creating a classic bruteforce protection instance instead");
+			protection = (BruteforceProtection) new ClassicBruteforceProtection();
+		}
+		return protection;
+	};
 	
 	public static WOComponent loginComponent(WOContext aContext, String message) {
 //		WORedirect redirect;
