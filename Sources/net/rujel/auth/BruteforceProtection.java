@@ -45,8 +45,15 @@ public class BruteforceProtection {
 			"auth.bruteforcingProtect",true);
 	protected String[] trustedProxies;
 	
-	protected NSMutableDictionary suspiciousUsers = new NSMutableDictionary();
-	protected NSMutableDictionary suspiciousHosts = new NSMutableDictionary();
+	protected NSMutableDictionary<String, TimeoutTask> suspiciousUsers = 
+			new NSMutableDictionary<String, TimeoutTask>();
+	protected NSMutableDictionary<String, TimeoutTask> suspiciousHosts = 
+			new NSMutableDictionary<String, TimeoutTask>();
+	
+	protected int max_time = net.rujel.reusables.SettingsReader.
+			intForKeyPath("auth.bruteforcingProtectMaxTime", 60*5);
+	protected int min_time = net.rujel.reusables.SettingsReader.
+			intForKeyPath("auth.bruteforcingProtectMinTime", 10);
 	
 	public int hostCounter(String host) {
 		Object counter = suspiciousHosts.objectForKey(host);
@@ -67,21 +74,24 @@ public class BruteforceProtection {
 		}
 	}
 	
-	public int raiseCounter(NSMutableDictionary dict,String key) {
+	public int raiseCounter(NSMutableDictionary<String, TimeoutTask> dict, String key) {
 		if(key == null) return 0;
 		Object counter = dict.objectForKey(key);
 		int result;
-		if(counter instanceof TimeoutTask) {
+		if(!(counter == null)) {
 			result = -((TimeoutTask)counter).recycle().getCount();
 		} else {
-			result = (counter==null)?1:((Integer)counter).intValue() + 1;
-			TimeoutTask task = new TimeoutTask(dict,key,result);
+			/* Used to return an integer. This is now changed, 
+			 * counter is either NULL or TimeoutTask */
+			//result = (counter==null)?1:((Integer)counter).intValue() + 1;
+			TimeoutTask task = new TimeoutTask(dict, key, 0);
+			result = min_time;
 			dict.setObjectForKey(task, key);
 		}
 		return result;
 	}
 	
-	public void resetCounter(NSMutableDictionary dict,String key) {
+	public void resetCounter(NSMutableDictionary<String, TimeoutTask> dict, String key) {
 		Object counter = dict.removeObjectForKey(key);
 		if(counter instanceof TimeoutTask) {
 			((TimeoutTask)counter).cancel();
@@ -217,32 +227,37 @@ public class BruteforceProtection {
 	}
 	
 		protected class TimeoutTask extends java.util.TimerTask {
-			private NSMutableDictionary inDict;
+			private NSMutableDictionary<String, TimeoutTask> inDict;
 			private String key;
 			private int count;
-			private int max_time;
 			
-			public TimeoutTask(NSMutableDictionary dict, String dictKey, int timeout) {
+			public TimeoutTask(NSMutableDictionary<String, TimeoutTask> dict, String dictKey, int timeout) {
 				super();
 				inDict = dict;
 				key = dictKey;
 				if(key == null)
 					key = "null";
+				if(timeout < min_time) 
+					timeout = min_time;
+				if(timeout > max_time)
+					timeout = max_time;
 				count = timeout;
-				timer.schedule(this,(long)timeout*1000);
 				inDict.setObjectForKey(this,key);
-				max_time = net.rujel.reusables.SettingsReader.
-						intForKeyPath("auth.bruteforcingProtectMaxTime", 60*5);
+				timer.schedule(this,(long)timeout*1000);
 			}
 			
 			public void run() {
-				inDict.setObjectForKey(new Integer(count),key);
+				/* This is called when the time is up - 
+				 * meaning no more lockdown is required */
+				inDict.removeObjectForKey(key);
+				// inDict.setObjectForKey(new Integer(count),key);
 				cancel();
 			}
 			
 			public TimeoutTask recycle() {
-				int nextCount = (count < max_time / 2)? count*2 : max_time;
-				TimeoutTask newTask = new TimeoutTask(inDict,key,nextCount);
+				// Now checked in constructor
+				// int nextCount = (count < max_time / 2)? count*2 : max_time; 
+				TimeoutTask newTask = new TimeoutTask(inDict,key,count * 2);
 				//timer.shedule(newTask,count*2000);
 				//inDict.setObjectForKey(newTask,key);
 				cancel();
