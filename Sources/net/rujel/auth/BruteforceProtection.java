@@ -31,62 +31,38 @@ package net.rujel.auth;
 
 import com.webobjects.appserver.WORequest;
 import com.webobjects.foundation.NSMutableDictionary;
+
+import net.rujel.auth.SimpleBruteforceProtection.TimeoutTask;
+
 import java.util.Timer;
 import java.util.logging.Logger;
 import java.util.logging.Level;
 //import com.apple.cocoa.application.*;
 
 
-public class BruteforceProtection {
+abstract public class BruteforceProtection {
 	protected static Logger logger = Logger.getLogger("auth");
-	protected Timer timer = new Timer(true);
-	
+
 	protected boolean bruteforcingProtect = net.rujel.reusables.SettingsReader.boolForKeyPath(
 			"auth.bruteforcingProtect",true);
 	protected String[] trustedProxies;
 	
-	protected NSMutableDictionary suspiciousUsers = new NSMutableDictionary();
-	protected NSMutableDictionary suspiciousHosts = new NSMutableDictionary();
+	@SuppressWarnings("rawtypes")
+	protected NSMutableDictionary suspiciousUsers = 
+			new NSMutableDictionary();		// Is used directly by Reset procedures
 	
-	public int hostCounter(String host) {
-		Object counter = suspiciousHosts.objectForKey(host);
-		if(counter instanceof TimeoutTask) {
-			return -((TimeoutTask)counter).getCount();
-		} else {
-			return (counter==null)?0:((Integer)counter).intValue();
-		}
-	}
+	@SuppressWarnings("rawtypes")
+	protected NSMutableDictionary suspiciousHosts = 
+			new NSMutableDictionary();		// Is used directly by Reset procedures
 	
+	public abstract int hostCounter(String host);	// Returns lock-down timer for user
+	public abstract int userCounter(String user);	// Returns lock-down timer for host
 	
-	public int userCounter(String user) {
-		Object counter = suspiciousUsers.objectForKey(user);
-		if(counter instanceof TimeoutTask) {
-			return -((TimeoutTask)counter).getCount();
-		} else {
-			return (counter==null)?0:((Integer)counter).intValue();
-		}
-	}
+	@SuppressWarnings("rawtypes")
+	public abstract int raiseCounter(NSMutableDictionary dict, String key);	//Returns new counter
 	
-	public int raiseCounter(NSMutableDictionary dict,String key) {
-		if(key == null) return 0;
-		Object counter = dict.objectForKey(key);
-		int result;
-		if(counter instanceof TimeoutTask) {
-			result = -((TimeoutTask)counter).recycle().getCount();
-		} else {
-			result = (counter==null)?1:((Integer)counter).intValue() + 1;
-			TimeoutTask task = new TimeoutTask(dict,key,result);
-			dict.setObjectForKey(task, key);
-		}
-		return result;
-	}
+	public abstract void resetCounter(NSMutableDictionary dict,String key);
 	
-	public void resetCounter(NSMutableDictionary dict,String key) {
-		Object counter = dict.removeObjectForKey(key);
-		if(counter instanceof TimeoutTask) {
-			((TimeoutTask)counter).cancel();
-		}
-	}
 	
 	public String hostID(WORequest req) {
 		String hostIP = com.apress.practicalwo.practicalutilities.
@@ -114,144 +90,30 @@ public class BruteforceProtection {
 		return hostIP;		
 	}
 
-	//public void checkHost(String host) throws LoginHandler.AuthenticationFailedException {
 	public void checkAttempt(WORequest req,Object uid)
 				throws LoginHandler.AuthenticationFailedException {
-		checkAttempt(hostID(req), uid);
+		if(bruteforcingProtect)
+			checkAttempt(hostID(req), uid);
 	}
 	
-	public void checkAttempt(String host,Object uid) 
-				throws LoginHandler.AuthenticationFailedException {
-		if(bruteforcingProtect) {
-			if(uid != null) {
-				Object counter = suspiciousUsers.objectForKey(uid);
-				if(counter instanceof TimeoutTask) {
-					raiseBoth(host, uid.toString());
-					logger.log(Level.WARNING,"Bruteforcing attempt from user: " + uid +
-							" host: " + host);
-					LoginHandler.AuthenticationFailedException ex =
-						new LoginHandler.AuthenticationFailedException(
-								LoginHandler.REFUSED,"Too many login attempts for user");
-					ex.setUserId(uid.toString());
-					throw ex;
-				}
-			} else {
-				if(host == null) return;
-				Object counter = suspiciousHosts.objectForKey(host);
-				if(counter instanceof TimeoutTask) {
-					((TimeoutTask)counter).recycle();
-					logger.warning("Bruteforcing attempt from host: " + host);
-					throw new LoginHandler.AuthenticationFailedException(LoginHandler.REFUSED);
-				}
-			}
-		}
-	}
+	public abstract void checkAttempt(String host,Object uid) 
+				throws LoginHandler.AuthenticationFailedException;
 	
 	public Integer badAttempt(WORequest req,LoginHandler.AuthenticationFailedException aex) {
-		return badAttempt(hostID(req), aex);
-	}
-	
-	public Integer badAttempt(String host,LoginHandler.AuthenticationFailedException aex) {
-		int result = 0;
 		if(bruteforcingProtect) {
-			if(aex.getReason() == LoginHandler.IDENTITY) {
-				int count = raiseCounter(suspiciousHosts,host);
-				result = StrictMath.abs(count);
-			}
-			if(aex.getReason() == LoginHandler.CREDENTIAL) {
-				String user = aex.getUserId();
-				result = raiseBoth(host, user);
-			}
-			if(aex.getReason() == LoginHandler.REFUSED) {
-				if(host != null)
-					result = new Integer(StrictMath.abs(hostCounter(host)));
-				else
-					result = new Integer(StrictMath.abs(userCounter(aex.getUserId())));
-			}
+			return badAttempt(hostID(req), aex);
+		} else {
+			return new Integer(0);
 		}
-		return new Integer(result);
-	}
-
-
-	public int raiseBoth(String host, String user) {
-		int byHost = StrictMath.abs(raiseCounter(suspiciousHosts,host));
-		int byUser = StrictMath.abs(raiseCounter(suspiciousUsers,user));
-		int result = StrictMath.max(byHost,byUser);
-		if(host != null) {
-			if(byUser < result) {
-				resetCounter(suspiciousUsers,user);
-				new TimeoutTask(suspiciousUsers,user,result);
-			} else if(byHost < result) {
-				resetCounter(suspiciousHosts,host);
-				new TimeoutTask(suspiciousHosts,host,result);
-			}
-		}
-		return result;
 	}
 	
+	public abstract Integer badAttempt(String host,LoginHandler.AuthenticationFailedException aex);
+		// Not sure what this returns and where is the result used
+
 	public void success (WORequest req, String user) {
 		success(hostID(req), user);
 	}
 	
-	public void success (String host, String user) {
-		if(bruteforcingProtect) {
-			Object hm = (host==null)?null:suspiciousHosts.objectForKey(host);
-			if(hm instanceof Integer) {
-				resetCounter(suspiciousHosts,host);
-			} else if (hm instanceof TimeoutTask) {
-				logger.log(Level.INFO,"Login succeded on first attempt for user \"" + user +
-						"\" while the host " + host + " was still on quaranteen for " +
-						((TimeoutTask)hm).getCount());
-				resetCounter(suspiciousUsers,user);
-				return;
-			}
-			Object um = suspiciousUsers.objectForKey(user);
-			if(hm != null || um != null) {
-				if(!(hm == null || (hm instanceof Number && ((Number)hm).intValue() <= 3)) ||
-				   !(um == null || (um instanceof Number && ((Number)um).intValue() <= 3)))
-				logger.logp(Level.INFO,"BruteforceProtection","success",
-						"Login succeded after several attempts- user: " + um +"; host: " + hm);
-				resetCounter(suspiciousUsers,user);
-			}
-		}
-	}
-	
-		protected class TimeoutTask extends java.util.TimerTask {
-			private NSMutableDictionary inDict;
-			private String key;
-			private int count;
-			
-			public TimeoutTask(NSMutableDictionary dict, String dictKey, int timeout) {
-				super();
-				inDict = dict;
-				key = dictKey;
-				if(key == null)
-					key = "null";
-				count = timeout;
-				timer.schedule(this,(long)timeout*1000);
-				inDict.setObjectForKey(this,key);
-			}
-			
-			public void run() {
-				inDict.setObjectForKey(new Integer(count),key);
-				cancel();
-			}
-			
-			public TimeoutTask recycle() {
-				int nextCount = (count < Integer.MAX_VALUE / 2)? count*2 : Integer.MAX_VALUE;
-				TimeoutTask newTask = new TimeoutTask(inDict,key,nextCount);
-				//timer.shedule(newTask,count*2000);
-				//inDict.setObjectForKey(newTask,key);
-				cancel();
-				return newTask;
-			}
-			
-			public int getCount() {
-				return count;
-			}
-			
-			public String toString() {
-				return "timeout -" + count;
-			}
-		}
+	public abstract void success (String host, String user); 
+	// Resets counters for people who were able to login
 }
